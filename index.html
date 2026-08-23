@@ -3,1752 +3,308 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SRT Editor</title>
+  <title>SRT Editor — 字幕時間軸編輯器</title>
+  <meta name="description" content="免費線上 SRT 字幕編輯器。波形圖拖拉調整時間軸、切點偵測、自動斷句，單檔 HTML 離線可用。">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #f5f5f5;
+      background: #fafafa;
       color: #333;
-      height: 100vh;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
     }
 
-    /* ── Toolbar ── */
-    .toolbar {
+    /* ── Hero ── */
+    .hero {
+      padding: 80px 24px 60px;
+      text-align: center;
+      background: linear-gradient(180deg, #f0fdf4 0%, #fafafa 100%);
+    }
+    .hero h1 {
+      font-size: 48px;
+      font-weight: 700;
+      color: #111;
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+    }
+    .hero h1 span { color: #22c55e; }
+    .hero p.tagline {
+      font-size: 20px;
+      color: #666;
+      max-width: 560px;
+      margin: 0 auto 40px;
+      line-height: 1.6;
+    }
+    .hero-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn-hero {
+      padding: 14px 32px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-primary {
+      background: #22c55e;
+      color: #fff;
+    }
+    .btn-primary:hover { background: #16a34a; transform: translateY(-1px); }
+    .btn-secondary {
+      background: #fff;
+      color: #333;
+      border: 1px solid #d0d0d0;
+    }
+    .btn-secondary:hover { background: #f5f5f5; transform: translateY(-1px); }
+
+    /* ── Screenshot ── */
+    .screenshot {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 24px 60px;
+    }
+    .screenshot-frame {
+      background: #111;
+      border-radius: 12px;
+      padding: 8px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    }
+    .screenshot-bar {
+      display: flex;
+      gap: 6px;
+      padding: 8px 12px;
+    }
+    .screenshot-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #333;
+    }
+    .screenshot-dot:nth-child(1) { background: #ef4444; }
+    .screenshot-dot:nth-child(2) { background: #eab308; }
+    .screenshot-dot:nth-child(3) { background: #22c55e; }
+    .screenshot-content {
+      background: #f5f5f5;
+      border-radius: 6px;
+      padding: 40px;
+      text-align: center;
+      color: #888;
+      font-size: 14px;
+    }
+    .screenshot-content .mock-wave {
+      height: 60px;
+      background: linear-gradient(90deg,
+        transparent 0%, #22c55e33 5%, #22c55e66 10%, #22c55e33 15%,
+        transparent 20%, #22c55e33 25%, #22c55e99 30%, #22c55e33 35%,
+        transparent 40%, #22c55e33 50%, #22c55ecc 55%, #22c55e33 60%,
+        transparent 65%, #22c55e33 70%, #22c55e66 75%, #22c55e33 80%,
+        transparent 85%, #22c55e33 90%, #22c55e55 95%, transparent 100%
+      );
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+
+    /* ── Features ── */
+    .features {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+    .features h2 {
+      text-align: center;
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 40px;
+      color: #111;
+    }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+    }
+    .feature-card {
+      padding: 24px;
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 10px;
+      transition: border-color 0.2s;
+    }
+    .feature-card:hover { border-color: #22c55e; }
+    .feature-card .icon {
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+    .feature-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #111;
+    }
+    .feature-card p {
+      font-size: 14px;
+      color: #666;
+      line-height: 1.5;
+    }
+
+    /* ── How it works ── */
+    .how {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+    .how h2 {
+      text-align: center;
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 40px;
+      color: #111;
+    }
+    .steps {
+      display: flex;
+      gap: 32px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .step {
+      text-align: center;
+      max-width: 200px;
+    }
+    .step-num {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #22c55e;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
-      background: #fff;
-      border-bottom: 1px solid #e0e0e0;
-      flex-shrink: 0;
+      justify-content: center;
+      margin: 0 auto 12px;
     }
-    .toolbar h1 {
+    .step h3 {
       font-size: 15px;
       font-weight: 600;
-      margin-right: 8px;
-      color: #16a34a;
+      margin-bottom: 6px;
     }
-    .btn {
-      padding: 5px 12px;
-      border: 1px solid #d0d0d0;
-      border-radius: 5px;
-      background: #fff;
-      color: #555;
-      cursor: pointer;
-      font-size: 12px;
-      transition: background 0.15s;
-    }
-    .btn:hover { background: #f0f0f0; }
-    .btn.primary { background: #22c55e; border-color: #22c55e; color: #fff; font-weight: 600; }
-    .btn.primary:hover { background: #16a34a; }
-    .spacer { flex: 1; }
-    .file-info { font-size: 11px; color: #999; }
-
-    /* ── Waveform (full width, top) ── */
-    .waveform-section {
-      flex-shrink: 0;
-      padding: 10px 16px 6px;
-      background: #f5f5f5;
-    }
-    #waveform-timeline {
-      background: #fff;
-      border-radius: 4px 4px 0 0;
-      border: 1px solid #e0e0e0;
-      border-bottom: none;
-      cursor: pointer;
-      user-select: none;
-    }
-    #waveform {
-      border-radius: 0 0 6px 6px;
-      overflow-x: auto;
-      overflow-y: hidden;
-      background: #e8e8e8;
-      padding-right: 8px;
-    }
-
-    /* ── Playback bar ── */
-    .playback-bar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 6px 16px;
-      background: #fff;
-      border-top: 1px solid #e0e0e0;
-      border-bottom: 1px solid #e0e0e0;
-      flex-shrink: 0;
-    }
-    .play-btn {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      border: none;
-      background: #22c55e;
-      color: #fff;
-      font-size: 14px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.15s;
-    }
-    .play-btn:hover { background: #16a34a; }
-    .time-display {
-      font-family: 'SF Mono', 'Menlo', monospace;
-      font-size: 12px;
-      color: #888;
-    }
-    .bar-control {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 11px;
-      color: #888;
-    }
-    .bar-control select {
-      background: #fff;
-      color: #555;
-      border: 1px solid #d0d0d0;
-      border-radius: 4px;
-      padding: 2px 4px;
-      font-size: 11px;
-    }
-    .bar-control input[type="range"] {
-      width: 100px;
-      accent-color: #22c55e;
-    }
-
-    /* ── Main content: video left + subtitles right ── */
-    .main-content {
-      flex: 1;
-      display: flex;
-      overflow: hidden;
-      min-height: 0;
-    }
-
-    /* Video panel */
-    .video-panel {
-      display: none;
-      flex-shrink: 0;
-      background: #111;
-      flex-direction: column;
-    }
-    .video-panel.visible {
-      display: flex;
-    }
-    .video-area {
-      flex: 1;
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #000;
-      min-height: 0;
-    }
-    .video-area video {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-    .video-subtitle {
-      position: absolute;
-      bottom: 8%;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.75);
-      color: #fff;
-      font-size: 24px;
-      font-weight: 600;
-      padding: 6px 18px;
-      border-radius: 4px;
-      max-width: 92%;
-      text-align: center;
-      pointer-events: none;
-      white-space: pre-line;
-      display: none;
-      letter-spacing: 0.5px;
-    }
-    .video-subtitle.visible { display: block; }
-    /* ── Subtitle status bar (bottom of subtitle panel) ── */
-    .subtitle-status {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 6px 12px;
-      background: #f0f0f0;
-      border-top: 1px solid #e0e0e0;
-      font-family: 'SF Mono', 'Menlo', monospace;
-      font-size: 11px;
-      color: #666;
-      flex-shrink: 0;
-    }
-    .subtitle-status .info-label { color: #999; }
-    .subtitle-status .info-value { color: #333; }
-
-    /* Subtitle panel */
-    .subtitle-panel {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-      background: #fafafa;
-      border-left: 1px solid #e0e0e0;
-    }
-    .subtitle-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      background: #fff;
-      border-bottom: 1px solid #e0e0e0;
-      flex-shrink: 0;
-    }
-    .subtitle-header .search-input {
-      flex: 1;
-      background: #f5f5f5;
-      border: 1px solid #d0d0d0;
-      border-radius: 5px;
-      color: #333;
-      padding: 5px 10px;
-      font-size: 12px;
-    }
-    .subtitle-header .search-input::placeholder { color: #aaa; }
-    .subtitle-header .search-input:focus { border-color: #22c55e; outline: none; }
-
-    .subtitle-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 4px 0;
-    }
-    .subtitle-list::-webkit-scrollbar { width: 6px; }
-    .subtitle-list::-webkit-scrollbar-track { background: transparent; }
-    .subtitle-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
-
-    .subtitle-item {
-      display: grid;
-      grid-template-columns: 32px 1fr auto 32px 28px;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 12px;
-      cursor: pointer;
-      transition: background 0.1s;
-      border-left: 3px solid transparent;
-    }
-    .subtitle-item:hover { background: #f0f0f0; }
-    .subtitle-item.active {
-      background: rgba(34, 197, 94, 0.08);
-      border-left-color: #22c55e;
-    }
-    .subtitle-item .index {
-      font-size: 11px;
-      color: #aaa;
-      text-align: center;
-      font-family: 'SF Mono', 'Menlo', monospace;
-    }
-    .subtitle-item .sub-text-display {
+    .step p {
       font-size: 13px;
-      color: #333;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      cursor: text;
-      padding: 2px 4px;
-      border-radius: 3px;
-      border: 1px solid transparent;
-      transition: border-color 0.15s, background 0.15s;
-    }
-    .subtitle-item .sub-text-display:hover {
-      border-color: #d0d0d0;
-      background: #fff;
-    }
-    .subtitle-item .sub-text-display:focus {
-      outline: none;
-      border-color: #22c55e;
-      background: #fff;
-      white-space: normal;
-      cursor: text;
-    }
-    .subtitle-item.active .sub-text-display { color: #111; font-weight: 500; }
-    .subtitle-item .sub-time {
-      font-family: 'SF Mono', 'Menlo', monospace;
-      font-size: 10px;
-      color: #aaa;
-      white-space: nowrap;
-      cursor: pointer;
-      padding: 2px 4px;
-      border-radius: 3px;
-      transition: background 0.15s, color 0.15s;
-    }
-    .subtitle-item .sub-time:hover {
-      background: #e8e8e8;
-      color: #555;
-    }
-    .subtitle-item .char-count {
-      font-family: 'SF Mono', 'Menlo', monospace;
-      font-size: 10px;
-      color: #aaa;
-      text-align: right;
-    }
-    .subtitle-item .char-count.over { color: #ef4444; font-weight: 600; }
-    .subtitle-item .delete-btn {
-      background: none;
-      border: none;
-      color: transparent;
-      cursor: pointer;
-      font-size: 14px;
-      padding: 2px;
-      border-radius: 3px;
-      transition: color 0.15s;
-    }
-    .subtitle-item:hover .delete-btn { color: #bbb; }
-    .subtitle-item .delete-btn:hover { color: #ef4444; }
-
-    /* ── Edit drawer ── */
-    .edit-drawer {
-      display: none;
-      padding: 10px 12px;
-      background: #fff;
-      border-top: 1px solid #e0e0e0;
-      flex-shrink: 0;
-      gap: 8px;
-    }
-    .edit-drawer.visible {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .edit-drawer .edit-row {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-    .edit-drawer label {
-      font-size: 11px;
       color: #888;
-      width: 32px;
-      flex-shrink: 0;
+      line-height: 1.5;
     }
-    .edit-drawer .time-input {
-      font-family: 'SF Mono', 'Menlo', monospace;
-      font-size: 12px;
-      background: #f5f5f5;
-      border: 1px solid #d0d0d0;
-      border-radius: 4px;
-      color: #333;
-      padding: 4px 8px;
-      width: 130px;
+
+    /* ── Footer ── */
+    .footer {
       text-align: center;
-    }
-    .edit-drawer .time-input:focus { border-color: #22c55e; outline: none; }
-    .edit-drawer .text-input {
+      padding: 24px;
+      border-top: 1px solid #e8e8e8;
       font-size: 13px;
-      background: #f5f5f5;
-      border: 1px solid #d0d0d0;
-      border-radius: 4px;
-      color: #333;
-      padding: 4px 8px;
-      flex: 1;
-    }
-    .edit-drawer .text-input:focus { border-color: #22c55e; outline: none; }
-    .edit-drawer .arrow { color: #aaa; font-size: 11px; }
-    .edit-drawer .hint { font-size: 10px; color: #aaa; margin-left: 4px; }
-
-    /* ── Empty state ── */
-    .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      flex: 1;
-      color: #bbb;
-      gap: 10px;
-    }
-    .empty-state .icon { font-size: 40px; opacity: 0.5; }
-    .empty-state p { font-size: 13px; }
-
-    /* ── Drop overlay ── */
-    .drop-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(34, 197, 94, 0.08);
-      border: 3px dashed #22c55e;
-      z-index: 100;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      color: #22c55e;
-    }
-    .drop-overlay.visible { display: flex; }
-
-    /* ── Cut detect button active state ── */
-    .btn.active {
-      background: #22c55e;
-      border-color: #22c55e;
-      color: #fff;
-    }
-    .btn.active:hover {
-      background: #16a34a;
-    }
-
-    /* ── Waveform wrapper for overlay ── */
-    .waveform-wrapper {
-      position: relative;
-    }
-    .cut-markers-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      pointer-events: none;
-      overflow: hidden;
-      border-radius: 6px;
-    }
-
-    /* ── Cut point markers ── */
-    .cut-marker {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      width: 0;
-      border-left: 1.5px dashed #ef4444;
-      pointer-events: none;
-      z-index: 3;
-      opacity: 0.6;
-    }
-
-    /* ── Region styling on waveform ── */
-    #waveform [data-part="region-content"],
-    #waveform ::part(region-content) {
-      font-size: 10px;
-      color: #fff;
-      background: rgba(0,0,0,0.65);
-      padding: 2px 6px;
-      border-radius: 3px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      font-weight: 500;
-      pointer-events: none;
-    }
-
-    /* ── Footer shortcuts ── */
-    .shortcuts-bar {
-      padding: 5px 16px;
-      background: #fff;
-      border-top: 1px solid #e0e0e0;
-      font-size: 10px;
       color: #aaa;
-      flex-shrink: 0;
-      display: flex;
-      gap: 14px;
+      margin-top: auto;
     }
-    .shortcuts-bar kbd {
-      background: #f0f0f0;
-      border: 1px solid #d0d0d0;
-      border-radius: 3px;
-      padding: 1px 4px;
-      font-family: 'SF Mono', 'Menlo', monospace;
-      font-size: 9px;
-      color: #888;
-    }
+    .footer a { color: #888; text-decoration: none; }
+    .footer a:hover { color: #22c55e; }
   </style>
 </head>
 <body>
 
-  <!-- Toolbar -->
-  <div class="toolbar">
-    <h1>SRT Editor</h1>
-    <button class="btn" id="btn-load-media">載入媒體</button>
-    <button class="btn" id="btn-load-srt">載入 SRT</button>
-    <div class="spacer"></div>
-    <span class="file-info" id="file-info"></span>
-    <button class="btn primary" id="btn-export" disabled>匯出 SRT</button>
-  </div>
-
-  <!-- Waveform (full width) -->
-  <div class="waveform-section">
-    <div id="waveform-timeline"></div>
-    <div class="waveform-wrapper" id="waveform-wrapper">
-      <div id="waveform"></div>
-      <div class="cut-markers-overlay" id="cut-markers-overlay"></div>
+  <div class="hero">
+    <h1>SRT <span>Editor</span></h1>
+    <p class="tagline">免費線上字幕時間軸編輯器。波形圖拖拉調整、切點偵測、自動斷句——打開瀏覽器就能用。</p>
+    <div class="hero-buttons">
+      <a href="app.html" class="btn-hero btn-primary">立即使用</a>
+      <a href="app.html" download class="btn-hero btn-secondary">下載離線版</a>
     </div>
   </div>
 
-  <!-- Playback bar -->
-  <div class="playback-bar">
-    <button class="play-btn" id="btn-play">▶</button>
-    <span class="time-display" id="time-display">00:00.000 / 00:00.000</span>
-    <div class="bar-control">
-      <span>速度</span>
-      <select id="speed-select">
-        <option value="0.5">0.5x</option>
-        <option value="0.75">0.75x</option>
-        <option value="1" selected>1x</option>
-        <option value="1.25">1.25x</option>
-        <option value="1.5">1.5x</option>
-        <option value="2">2x</option>
-      </select>
-    </div>
-    <div class="spacer"></div>
-    <button class="btn" id="btn-auto-split" disabled>自動斷句</button>
-    <button class="btn" id="btn-cut-detect" disabled>切點偵測</button>
-    <button class="btn" id="btn-prev-sub" title="上一段" style="display:none">◀</button>
-    <button class="btn" id="btn-snap-one" title="對齊此段" style="display:none">對齊</button>
-    <button class="btn" id="btn-next-sub" title="下一段" style="display:none">▶</button>
-    <button class="btn" id="btn-snap-all" style="display:none">自動修正</button>
-    <div class="bar-control">
-      <span>縮放</span>
-      <input type="range" id="zoom-slider" min="1" max="500" value="1">
-    </div>
-  </div>
-
-  <!-- Main content: video + subtitle list -->
-  <div class="main-content">
-    <div class="video-panel" id="video-panel">
-      <div class="video-area">
-        <video id="video-preview" playsinline controls></video>
-        <div class="video-subtitle" id="video-subtitle"></div>
+  <div class="screenshot">
+    <div class="screenshot-frame">
+      <div class="screenshot-bar">
+        <div class="screenshot-dot"></div>
+        <div class="screenshot-dot"></div>
+        <div class="screenshot-dot"></div>
       </div>
-    </div>
-
-    <div class="subtitle-panel">
-      <div class="subtitle-header">
-        <input class="search-input" id="search-input" type="text" placeholder="搜尋字幕...">
-      </div>
-      <div class="subtitle-list" id="subtitle-list">
-        <div class="empty-state" id="empty-state">
-          <div class="icon">🎬</div>
-          <p>拖放影片／音檔 + SRT 到視窗</p>
-        </div>
-      </div>
-      <div class="subtitle-status" id="subtitle-status">
-        <span><span class="info-value" id="info-start">--:--</span></span>
-        <span><span class="info-value" id="info-duration">--</span></span>
-        <span><span class="info-value" id="info-chars">--</span></span>
-      </div>
-      <div class="edit-drawer" id="edit-drawer">
-        <div class="edit-row">
-          <label>時間</label>
-          <input class="time-input" id="edit-start" type="text">
-          <span class="arrow">→</span>
-          <input class="time-input" id="edit-end" type="text">
-        </div>
-        <div class="edit-row">
-          <label>文字</label>
-          <input class="text-input" id="edit-text" type="text">
-          <span class="hint">Enter 斷句</span>
-        </div>
+      <div class="screenshot-content">
+        <div class="mock-wave"></div>
+        載入影片 + SRT，波形圖上直接拖拉調整字幕時間
       </div>
     </div>
   </div>
 
-  <!-- Footer -->
-  <div class="shortcuts-bar">
-    <span><kbd>Space</kbd> 播放</span>
-    <span><kbd>←</kbd><kbd>→</kbd> ±5s</span>
-    <span><kbd>⌘Z</kbd> 復原</span>
-    <span><kbd>⌘⇧Z</kbd> 重做</span>
-    <span><kbd>Del</kbd> 刪除字幕</span>
-    <span><kbd>⌘S</kbd> 匯出</span>
+  <div class="features">
+    <h2>功能特色</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon">~</div>
+        <h3>波形圖編輯</h3>
+        <p>拖拉、拉伸字幕區段，直覺調整起止時間。磁吸對齊游標線與相鄰字幕。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">||</div>
+        <h3>切點偵測</h3>
+        <p>自動分析音頻靜音區段，標記語音斷點。一鍵自動修正所有字幕時間。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">Aa</div>
+        <h3>自動斷句</h3>
+        <p>依台灣中文用語習慣，在標點、助詞、連接詞處智慧斷句（16 字上限）。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">[]</div>
+        <h3>影片預覽</h3>
+        <p>左側即時預覽影片，字幕疊加顯示。支援 MP4、MOV、WebM 等格式。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">#</div>
+        <h3>字數提示</h3>
+        <p>每行顯示字數，超過 16 字自動標紅。底部狀態列顯示字/秒語速。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">&lt;&gt;</div>
+        <h3>單檔 HTML</h3>
+        <p>不需安裝、不需 build。下載一個檔案，瀏覽器打開就能用。</p>
+      </div>
+    </div>
   </div>
 
-  <div class="drop-overlay" id="drop-overlay">拖放影片／音檔或 SRT</div>
+  <div class="how">
+    <h2>使用流程</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>載入檔案</h3>
+        <p>拖放影片和 SRT 字幕檔到視窗</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>調整時間</h3>
+        <p>在波形圖上拖拉字幕區段，或用切點偵測自動修正</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>編輯文字</h3>
+        <p>點擊字幕直接修改，Enter 斷句，Delete 刪除</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h3>匯出 SRT</h3>
+        <p>Cmd+S 匯出修正後的字幕檔</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <a href="https://github.com/john8895/srt-editor">GitHub</a> · MIT License · 使用 <a href="https://wavesurfer.xyz/">wavesurfer.js</a>（BSD-3-Clause）
+  </div>
 
-  <input type="file" id="input-media" accept="audio/*,video/*,.mp4,.mov,.webm,.mkv,.avi" hidden>
-  <input type="file" id="input-srt" accept=".srt" hidden>
-
-  <script type="module">
-    import WaveSurfer from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/wavesurfer.esm.js'
-    import RegionsPlugin from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/plugins/regions.esm.js'
-    import TimelinePlugin from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/plugins/timeline.esm.js'
-
-    // ── State ──
-    let subtitles = []
-    let activeRegion = null
-    let wavesurfer = null
-    let regions = null
-    let srtFileName = 'output'
-
-    // ── Undo/Redo ──
-    const undoStack = []
-    let historyIndex = -1
-    const MAX_HISTORY = 100
-
-    function snapshotState() {
-      return JSON.parse(JSON.stringify(subtitles))
-    }
-
-    function pushHistory() {
-      undoStack.splice(historyIndex + 1)
-      undoStack.push(snapshotState())
-      if (undoStack.length > MAX_HISTORY) undoStack.shift()
-      historyIndex = undoStack.length - 1
-    }
-
-    function undo() {
-      if (historyIndex <= 0) return
-      historyIndex--
-      restoreState(undoStack[historyIndex])
-    }
-
-    function redo() {
-      if (historyIndex >= undoStack.length - 1) return
-      historyIndex++
-      restoreState(undoStack[historyIndex])
-    }
-
-    function restoreState(snapshot) {
-      subtitles = JSON.parse(JSON.stringify(snapshot))
-      renderSubtitleList()
-      if (regions) renderRegions()
-      closeEditDrawer()
-    }
-
-    // ── Snapping + overlap prevention ──
-    // 磁吸目標：游標線位置 + 相鄰字幕邊界
-    // 重疊防止：不允許兩條字幕在時間上重疊
-    const SNAP_THRESHOLD = 0.08
-
-    function getSnapTargets(regionId) {
-      const targets = []
-
-      // 1) 游標線位置（最重要的磁吸目標）
-      if (wavesurfer) {
-        targets.push(wavesurfer.getCurrentTime())
-      }
-
-      // 2) 相鄰字幕邊界
-      for (const other of subtitles) {
-        if (other.id === regionId) continue
-        targets.push(other.start)
-        targets.push(other.end)
-      }
-
-      // 3) 切點偵測的位置
-      if (cutMarkersVisible) {
-        for (const marker of cutMarkers) {
-          targets.push(marker.time)
-        }
-      }
-
-      return targets
-    }
-
-    function clampAndSnap(regionId, start, end, keepDuration) {
-      const others = subtitles.filter(s => s.id !== regionId).sort((a, b) => a.start - b.start)
-      const duration = end - start
-      const targets = getSnapTargets(regionId)
-
-      // 1) Snap edges to targets (游標、相鄰字幕、切點)
-      for (const t of targets) {
-        if (Math.abs(start - t) < SNAP_THRESHOLD) {
-          start = t
-          if (keepDuration) end = start + duration
-        }
-        if (Math.abs(end - t) < SNAP_THRESHOLD) {
-          end = t
-          if (keepDuration) start = end - duration
-        }
-      }
-
-      // 2) Prevent overlap (不可重疊)
-      for (const other of others) {
-        if (start < other.end && end > other.start) {
-          if (keepDuration) {
-            const pushRight = other.end - start
-            const pushLeft = end - other.start
-            if (pushRight <= pushLeft) {
-              start = other.end
-              end = start + duration
-            } else {
-              end = other.start
-              start = end - duration
-            }
-          } else {
-            if (start < other.end && start > other.start) start = other.end
-            if (end > other.start && end < other.end) end = other.start
-          }
-        }
-      }
-
-      // 3) Don't go below 0
-      if (start < 0) { start = 0; if (keepDuration) end = duration }
-
-      return { start, end }
-    }
-
-    // ── DOM refs ──
-    const $ = (s) => document.querySelector(s)
-    const btnLoadMedia = $('#btn-load-media')
-    const btnLoadSrt = $('#btn-load-srt')
-    const btnExport = $('#btn-export')
-    const btnPlay = $('#btn-play')
-    const inputMedia = $('#input-media')
-    const inputSrt = $('#input-srt')
-    const videoPanel = $('#video-panel')
-    const videoPreview = $('#video-preview')
-    const videoSubtitle = $('#video-subtitle')
-    const subtitleList = $('#subtitle-list')
-    const emptyState = $('#empty-state')
-    const fileInfo = $('#file-info')
-    const timeDisplay = $('#time-display')
-    const speedSelect = $('#speed-select')
-    const zoomSlider = $('#zoom-slider')
-    const dropOverlay = $('#drop-overlay')
-    const btnAutoSplit = $('#btn-auto-split')
-    const btnCutDetect = $('#btn-cut-detect')
-    const btnPrevSub = $('#btn-prev-sub')
-    const btnNextSub = $('#btn-next-sub')
-    const btnSnapOne = $('#btn-snap-one')
-    const btnSnapAll = $('#btn-snap-all')
-    const searchInput = $('#search-input')
-    const editDrawer = $('#edit-drawer')
-    const editStart = $('#edit-start')
-    const editEnd = $('#edit-end')
-    const editText = $('#edit-text')
-    const infoStart = $('#info-start')
-    const infoDuration = $('#info-duration')
-    const infoChars = $('#info-chars')
-
-    // ── Region colors (green tones) ──
-    const regionColors = [
-      'rgba(34, 197, 94, 0.18)',
-      'rgba(74, 222, 128, 0.15)',
-      'rgba(22, 163, 74, 0.18)',
-      'rgba(134, 239, 172, 0.14)',
-      'rgba(34, 197, 94, 0.16)',
-    ]
-
-    // ── Init wavesurfer ──
-    function initWaveSurfer(mediaElement) {
-      if (wavesurfer) {
-        wavesurfer.destroy()
-        wavesurfer = null
-      }
-
-      regions = RegionsPlugin.create()
-
-      const timeline = TimelinePlugin.create({
-        container: '#waveform-timeline',
-        height: 24,
-        timeInterval: 1,
-        primaryLabelInterval: 5,
-        secondaryLabelOpacity: 0.4,
-        style: 'font-size: 10px; color: #888;',
-      })
-
-      const opts = {
-        container: '#waveform',
-        waveColor: '#22c55e',
-        progressColor: '#15803d',
-        cursorColor: '#333',
-        cursorWidth: 2,
-        autoScroll: true,
-        autoCenter: true,
-        height: 100,
-        barWidth: 2,
-        barGap: 1,
-        barRadius: 2,
-        plugins: [regions, timeline],
-      }
-
-      if (mediaElement) {
-        opts.media = mediaElement
-      }
-
-      wavesurfer = WaveSurfer.create(opts)
-
-      wavesurfer.on('ready', () => {
-        updateTimeDisplay()
-        if (subtitles.length > 0) renderRegions()
-      })
-
-      wavesurfer.on('audioprocess', () => {
-        updateTimeDisplay()
-        highlightCurrentSubtitle()
-      })
-
-      wavesurfer.on('seeking', () => {
-        updateTimeDisplay()
-        highlightCurrentSubtitle()
-      })
-
-      wavesurfer.on('play', () => { btnPlay.textContent = '⏸' })
-      wavesurfer.on('pause', () => { btnPlay.textContent = '▶' })
-
-      // Track pre-drag duration to distinguish drag vs resize
-      let preDragDuration = 0
-      regions.on('region-update', (region) => {
-        if (region.id.startsWith('cut-')) return
-        if (preDragDuration === 0) preDragDuration = region.end - region.start
-        const sub = subtitles.find(s => s.id === region.id)
-        if (sub) {
-          sub.start = region.start
-          sub.end = region.end
-          updateSubtitleRowTime(sub)
-          if (activeRegion === sub.id) syncEditDrawer(sub)
-        }
-      })
-
-      regions.on('region-updated', (region) => {
-        if (region.id.startsWith('cut-')) return
-        const sub = subtitles.find(s => s.id === region.id)
-        if (!sub) return
-        const newDuration = region.end - region.start
-        const isDrag = Math.abs(newDuration - preDragDuration) < 0.01
-        preDragDuration = 0
-
-        const result = clampAndSnap(region.id, region.start, region.end, isDrag)
-        region.setOptions({ start: result.start, end: result.end })
-        sub.start = result.start
-        sub.end = result.end
-        updateSubtitleRowTime(sub)
-        if (activeRegion === sub.id) syncEditDrawer(sub)
-        pushHistory()
-      })
-
-      regions.on('region-created', (region) => {
-        if (region.element) {
-          region.element.style.borderRadius = '6px'
-          region.element.style.border = '1px solid rgba(0, 0, 0, 0.12)'
-        }
-
-        // Handle user-created regions (drag on waveform)
-        if (!region.id.startsWith('sub-') && !region.id.startsWith('cut-')) {
-          const newId = `sub-${Date.now()}`
-          const newSub = {
-            id: newId,
-            index: subtitles.length + 1,
-            start: region.start,
-            end: region.end,
-            text: '',
-          }
-          subtitles.push(newSub)
-          subtitles.sort((a, b) => a.start - b.start)
-          subtitles.forEach((s, i) => { s.index = i + 1 })
-
-          // Remove the temp region, re-render all
-          region.remove()
-          renderSubtitleList()
-          renderRegions()
-          pushHistory()
-
-          // Activate and open edit for the new subtitle
-          setActiveRegion(newId)
-          // Find the text element and focus it
-          setTimeout(() => {
-            const row = subtitleList.querySelector(`[data-id="${newId}"]`)
-            if (row) {
-              const textEl = row.querySelector('.sub-text-display')
-              if (textEl) {
-                textEl.contentEditable = 'true'
-                textEl.focus()
-              }
-            }
-          }, 50)
-        }
-      })
-
-      // Enable drag selection on waveform to create new subtitles
-      regions.enableDragSelection({
-        color: 'rgba(34, 197, 94, 0.2)',
-      })
-
-      regions.on('region-clicked', (region, e) => {
-        if (region.id.startsWith('cut-')) return
-        e.stopPropagation()
-        setActiveRegion(region.id)
-        wavesurfer.setTime(region.start)
-      })
-    }
-
-    // ── SRT parsing ──
-    function parseSRT(text) {
-      const blocks = text.trim().replace(/\r\n/g, '\n').split(/\n\n+/)
-      const result = []
-      for (const block of blocks) {
-        const lines = block.split('\n')
-        if (lines.length < 2) continue
-        const timeMatch = lines.find(l => l.includes('-->'))
-        if (!timeMatch) continue
-        const timeIndex = lines.indexOf(timeMatch)
-        const index = parseInt(lines[0]) || result.length + 1
-        const [startStr, endStr] = timeMatch.split('-->').map(s => s.trim())
-        const textLines = lines.slice(timeIndex + 1).join('\n')
-        result.push({
-          id: `sub-${index}`,
-          index,
-          start: srtTimeToSeconds(startStr),
-          end: srtTimeToSeconds(endStr),
-          text: textLines,
-        })
-      }
-      return result
-    }
-
-    function srtTimeToSeconds(str) {
-      const [time, ms] = str.split(/[,.]/)
-      const [h, m, s] = time.split(':').map(Number)
-      return h * 3600 + m * 60 + s + parseInt(ms) / 1000
-    }
-
-    function secondsToSrtTime(sec) {
-      const h = Math.floor(sec / 3600)
-      const m = Math.floor((sec % 3600) / 60)
-      const s = Math.floor(sec % 60)
-      const ms = Math.round((sec % 1) * 1000)
-      return `${pad(h)}:${pad(m)}:${pad(s)},${pad3(ms)}`
-    }
-
-    function shortTime(sec) {
-      const m = Math.floor(sec / 60)
-      const s = Math.floor(sec % 60)
-      const ms = Math.floor((sec % 1) * 100)
-      return `${m}:${pad(s)}.${pad(ms)}`
-    }
-
-    function pad(n) { return n.toString().padStart(2, '0') }
-    function pad3(n) { return n.toString().padStart(3, '0') }
-
-    // ── SRT export ──
-    function exportSRT() {
-      const sorted = [...subtitles].sort((a, b) => a.start - b.start)
-      let output = ''
-      sorted.forEach((sub, i) => {
-        output += `${i + 1}\n`
-        output += `${secondsToSrtTime(sub.start)} --> ${secondsToSrtTime(sub.end)}\n`
-        output += `${sub.text}\n\n`
-      })
-      return output.trim() + '\n'
-    }
-
-    // ── Silence / cut point detection ──
-    let cutMarkers = []       // { time } array
-    let cutMarkersVisible = false
-    let cutMarkerEls = []     // DOM elements
-
-    async function detectSilence() {
-      if (!wavesurfer) return []
-
-      // Get the decoded audio data from wavesurfer
-      const audioData = wavesurfer.getDecodedData()
-      if (!audioData) return []
-
-      const channel = audioData.getChannelData(0)
-      const sampleRate = audioData.sampleRate
-
-      // Parameters
-      const windowSize = Math.floor(sampleRate * 0.03)  // 30ms window
-      const silenceThreshold = 0.015  // RMS threshold
-      const minSilenceDuration = 0.2  // minimum 200ms silence to count as a cut
-
-      // Calculate RMS for each window
-      const silenceRegions = []
-      let inSilence = false
-      let silenceStart = 0
-
-      for (let i = 0; i < channel.length; i += windowSize) {
-        let sum = 0
-        const end = Math.min(i + windowSize, channel.length)
-        for (let j = i; j < end; j++) {
-          sum += channel[j] * channel[j]
-        }
-        const rms = Math.sqrt(sum / (end - i))
-        const time = i / sampleRate
-
-        if (rms < silenceThreshold) {
-          if (!inSilence) {
-            inSilence = true
-            silenceStart = time
-          }
-        } else {
-          if (inSilence) {
-            const silenceDuration = time - silenceStart
-            if (silenceDuration >= minSilenceDuration) {
-              // Cut point = middle of the silence
-              silenceRegions.push({ time: silenceStart + silenceDuration / 2 })
-            }
-            inSilence = false
-          }
-        }
-      }
-
-      return silenceRegions
-    }
-
-    function renderCutMarkers() {
-      // Remove old marker regions
-      if (regions) {
-        regions.getRegions().forEach(r => {
-          if (r.id.startsWith('cut-')) r.remove()
-        })
-      }
-
-      if (!cutMarkersVisible || !wavesurfer || !regions) return
-
-      cutMarkers.forEach((marker, i) => {
-        regions.addRegion({
-          id: `cut-${i}`,
-          start: marker.time,
-          end: marker.time,
-          color: 'rgba(239, 68, 68, 0.8)',
-          drag: false,
-          resize: false,
-        })
-      })
-    }
-
-    btnCutDetect.addEventListener('click', async () => {
-      if (cutMarkersVisible) {
-        // Toggle off
-        cutMarkersVisible = false
-        btnCutDetect.classList.remove('active')
-        btnCutDetect.textContent = '切點偵測'
-        // Remove cut marker regions
-        if (regions) {
-          regions.getRegions().forEach(r => {
-            if (r.id.startsWith('cut-')) r.remove()
-          })
-        }
-        // Hide alignment buttons
-        btnPrevSub.style.display = 'none'
-        btnNextSub.style.display = 'none'
-        btnSnapOne.style.display = 'none'
-        btnSnapAll.style.display = 'none'
-        return
-      }
-
-      // Toggle on — detect if not yet done
-      btnCutDetect.textContent = '偵測中...'
-      btnCutDetect.disabled = true
-
-      // Use setTimeout to let UI update
-      setTimeout(async () => {
-        cutMarkers = await detectSilence()
-        cutMarkersVisible = true
-        btnCutDetect.textContent = `切點偵測 (${cutMarkers.length})`
-        btnCutDetect.disabled = false
-        btnCutDetect.classList.add('active')
-        renderCutMarkers()
-        // Show alignment buttons
-        btnPrevSub.style.display = ''
-        btnNextSub.style.display = ''
-        btnSnapOne.style.display = ''
-        btnSnapAll.style.display = ''
-      }, 50)
-    })
-
-    // Re-render markers when zoom changes
-    zoomSlider.addEventListener('input', () => {
-      if (cutMarkersVisible) {
-        // Delay slightly so wavesurfer finishes redraw
-        setTimeout(renderCutMarkers, 100)
-      }
-    })
-
-    // ── Cut point alignment ──
-    let currentNavIndex = -1
-
-    function findNearestCut(time) {
-      if (cutMarkers.length === 0) return time
-      let nearest = cutMarkers[0].time
-      let minDist = Math.abs(time - nearest)
-      for (const marker of cutMarkers) {
-        const dist = Math.abs(time - marker.time)
-        if (dist < minDist) {
-          minDist = dist
-          nearest = marker.time
-        }
-      }
-      return nearest
-    }
-
-    function snapSubToCuts(sub) {
-      const newStart = findNearestCut(sub.start)
-      const newEnd = findNearestCut(sub.end)
-      // Only snap if the cut point is reasonably close (within 1 second)
-      if (Math.abs(newStart - sub.start) < 1.0) sub.start = newStart
-      if (Math.abs(newEnd - sub.end) < 1.0) sub.end = newEnd
-    }
-
-    function navigateToSub(index) {
-      if (subtitles.length === 0) return
-      if (index < 0) index = 0
-      if (index >= subtitles.length) index = subtitles.length - 1
-      currentNavIndex = index
-      const sub = subtitles[currentNavIndex]
-      setActiveRegion(sub.id)
-      if (wavesurfer) wavesurfer.setTime(sub.start)
-      openEditDrawer(sub)
-    }
-
-    btnPrevSub.addEventListener('click', () => {
-      if (currentNavIndex <= 0) {
-        // Find current active subtitle index
-        const idx = subtitles.findIndex(s => s.id === activeRegion)
-        currentNavIndex = idx > 0 ? idx - 1 : 0
-      } else {
-        currentNavIndex--
-      }
-      navigateToSub(currentNavIndex)
-    })
-
-    btnNextSub.addEventListener('click', () => {
-      if (currentNavIndex < 0) {
-        const idx = subtitles.findIndex(s => s.id === activeRegion)
-        currentNavIndex = idx >= 0 ? idx + 1 : 0
-      } else {
-        currentNavIndex++
-      }
-      navigateToSub(currentNavIndex)
-    })
-
-    btnSnapOne.addEventListener('click', () => {
-      const sub = subtitles.find(s => s.id === activeRegion)
-      if (!sub) return
-      snapSubToCuts(sub)
-      updateRegionTime(sub)
-      updateSubtitleRowTime(sub)
-      syncEditDrawer(sub)
-      pushHistory()
-    })
-
-    btnSnapAll.addEventListener('click', () => {
-      subtitles.forEach(sub => snapSubToCuts(sub))
-      renderSubtitleList()
-      renderRegions()
-      pushHistory()
-      btnSnapAll.textContent = `已修正 (${subtitles.length} 條)`
-      setTimeout(() => { btnSnapAll.textContent = '自動修正' }, 2000)
-    })
-
-    // ── Auto split (台灣斷句) ──
-    const MAX_CHARS = 16
-
-    // Break points by priority: punctuation > particles > conjunctions
-    const BREAK_AFTER = [
-      '，', '。', '！', '？', '；', '：', '、',           // punctuation
-      '⋯', '…',                                           // ellipsis
-      '的', '了', '嗎', '啊', '呢', '吧', '喔', '耶',     // sentence-final particles
-      '嘛', '囉', '哦', '欸', '哪', '唷',                 // more particles
-      '就是', '然後', '所以', '但是', '因為', '可是',       // conjunctions
-      '不過', '而且', '或是', '如果', '雖然', '還是',
-      '那', '就', '也', '都', '才', '又', '再',           // short connectors
-    ]
-
-    function findBestBreak(text) {
-      const mid = Math.floor(text.length / 2)
-      let bestPos = -1
-      let bestDist = Infinity
-
-      // Try each break pattern, find the one closest to the middle
-      for (const pattern of BREAK_AFTER) {
-        let idx = -1
-        let searchFrom = 0
-        while ((idx = text.indexOf(pattern, searchFrom)) !== -1) {
-          const breakPos = idx + pattern.length
-          // Don't break if result would be too short (< 4 chars on either side)
-          if (breakPos >= 4 && text.length - breakPos >= 4) {
-            const dist = Math.abs(breakPos - mid)
-            if (dist < bestDist) {
-              bestDist = dist
-              bestPos = breakPos
-            }
-          }
-          searchFrom = idx + 1
-        }
-      }
-
-      // Fallback: just split at middle
-      if (bestPos === -1) bestPos = mid
-
-      return bestPos
-    }
-
-    function autoSplitSubtitles() {
-      let changed = false
-      let i = 0
-
-      while (i < subtitles.length) {
-        const sub = subtitles[i]
-        const text = sub.text.replace(/\n/g, ' ').trim()
-
-        if (text.length > MAX_CHARS) {
-          const breakPos = findBestBreak(text)
-          const textBefore = text.slice(0, breakPos).trim()
-          const textAfter = text.slice(breakPos).trim()
-
-          if (textBefore && textAfter) {
-            const ratio = breakPos / text.length
-            const splitTime = sub.start + (sub.end - sub.start) * ratio
-            const origEnd = sub.end
-
-            sub.text = textBefore
-            sub.end = splitTime
-
-            const newSub = {
-              id: `sub-${Date.now()}-${i}`,
-              index: sub.index + 1,
-              start: splitTime,
-              end: origEnd,
-              text: textAfter,
-            }
-
-            subtitles.splice(i + 1, 0, newSub)
-            changed = true
-            // Don't increment i — check the first half again in case it's still too long
-            continue
-          }
-        }
-        i++
-      }
-
-      if (changed) {
-        // Re-index
-        subtitles.forEach((s, idx) => { s.index = idx + 1 })
-        renderSubtitleList()
-        renderRegions()
-        pushHistory()
-      }
-
-      return changed
-    }
-
-    btnAutoSplit.addEventListener('click', () => {
-      const changed = autoSplitSubtitles()
-      if (changed) {
-        const count = subtitles.length
-        btnAutoSplit.textContent = `已斷句 (${count} 條)`
-        setTimeout(() => { btnAutoSplit.textContent = '自動斷句' }, 2000)
-      } else {
-        btnAutoSplit.textContent = '無需斷句'
-        btnAutoSplit.disabled = true
-        btnAutoSplit.style.opacity = '0.5'
-        setTimeout(() => {
-          btnAutoSplit.textContent = '自動斷句'
-          btnAutoSplit.disabled = false
-          btnAutoSplit.style.opacity = ''
-        }, 2000)
-      }
-    })
-
-    // ── Render regions ──
-    function makeRegionLabel(text) {
-      const el = document.createElement('span')
-      el.textContent = text.split('\n')[0].slice(0, 40)
-      el.style.cssText = 'font-size:10px;color:#fff;background:rgba(0,0,0,0.65);padding:2px 6px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-block;pointer-events:none;font-weight:500;margin:3px 0 0 3px;'
-      return el
-    }
-
-    function renderRegions() {
-      regions.clearRegions()
-      subtitles.forEach((sub, i) => {
-        regions.addRegion({
-          id: sub.id,
-          start: sub.start,
-          end: sub.end,
-          content: makeRegionLabel(sub.text),
-          color: regionColors[i % regionColors.length],
-          drag: true,
-          resize: true,
-        })
-      })
-      // Re-add cut markers if visible
-      if (cutMarkersVisible) renderCutMarkers()
-    }
-
-    // ── Render subtitle list ──
-    function renderSubtitleList() {
-      if (subtitles.length === 0) {
-        emptyState.style.display = 'flex'
-        subtitleList.querySelectorAll('.subtitle-item').forEach(el => el.remove())
-        return
-      }
-
-      emptyState.style.display = 'none'
-      subtitleList.querySelectorAll('.subtitle-item').forEach(el => el.remove())
-
-      subtitles.forEach((sub) => {
-        const row = document.createElement('div')
-        row.className = 'subtitle-item'
-        row.dataset.id = sub.id
-        const charLen = sub.text.replace(/\n/g, '').length
-        row.innerHTML = `
-          <span class="index">${sub.index}</span>
-          <span class="sub-text-display" contenteditable="false">${escapeHtml(sub.text.replace(/\n/g, ' '))}</span>
-          <span class="sub-time">${shortTime(sub.start)}</span>
-          <span class="char-count ${charLen > 16 ? 'over' : ''}">${charLen}</span>
-          <button class="delete-btn" title="刪除">×</button>
-        `
-
-        const textEl = row.querySelector('.sub-text-display')
-
-        // Single click: select + jump to time
-        row.addEventListener('click', (e) => {
-          if (e.target.tagName === 'BUTTON') return
-          if (textEl.contentEditable === 'true') return // don't interfere when editing
-          setActiveRegion(sub.id)
-          if (wavesurfer) wavesurfer.setTime(sub.start)
-        })
-
-        // Click on text: make editable
-        textEl.addEventListener('click', (e) => {
-          e.stopPropagation()
-          setActiveRegion(sub.id)
-          if (wavesurfer) wavesurfer.setTime(sub.start)
-          textEl.contentEditable = 'true'
-          textEl.focus()
-        })
-
-        // Enter: confirm edit; Escape: cancel
-        textEl.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
-            textEl.blur()
-          } else if (e.key === 'Escape') {
-            textEl.textContent = sub.text.replace(/\n/g, ' ')
-            textEl.blur()
-          }
-        })
-
-        // Click time code: open edit drawer to modify timing
-        const timeEl = row.querySelector('.sub-time')
-        timeEl.addEventListener('click', (e) => {
-          e.stopPropagation()
-          setActiveRegion(sub.id)
-          openEditDrawer(sub)
-        })
-
-        // Save on blur
-        textEl.addEventListener('blur', () => {
-          textEl.contentEditable = 'false'
-          const newText = textEl.textContent.trim()
-          if (newText && newText !== sub.text) {
-            sub.text = newText
-            const region = regions.getRegions().find(r => r.id === sub.id)
-            if (region) region.setOptions({ content: makeRegionLabel(sub.text) })
-            pushHistory()
-          } else {
-            textEl.textContent = sub.text.replace(/\n/g, ' ')
-          }
-        })
-
-        row.querySelector('.delete-btn').addEventListener('click', () => {
-          subtitles = subtitles.filter(s => s.id !== sub.id)
-          const region = regions.getRegions().find(r => r.id === sub.id)
-          if (region) region.remove()
-          row.remove()
-          if (subtitles.length === 0) emptyState.style.display = 'flex'
-          if (activeRegion === sub.id) closeEditDrawer()
-          pushHistory()
-        })
-
-        subtitleList.appendChild(row)
-      })
-    }
-
-    function updateSubtitleRowTime(sub) {
-      const row = subtitleList.querySelector(`[data-id="${sub.id}"]`)
-      if (!row) return
-      row.querySelector('.sub-time').textContent = shortTime(sub.start)
-    }
-
-    function updateSubtitleRowText(sub) {
-      const row = subtitleList.querySelector(`[data-id="${sub.id}"]`)
-      if (!row) return
-      row.querySelector('.sub-text-display').textContent = sub.text.replace(/\n/g, ' ')
-      const charLen = sub.text.replace(/\n/g, '').length
-      const countEl = row.querySelector('.char-count')
-      if (countEl) {
-        countEl.textContent = charLen
-        countEl.classList.toggle('over', charLen > 16)
-      }
-    }
-
-    function updateRegionTime(sub) {
-      const region = regions.getRegions().find(r => r.id === sub.id)
-      if (region) region.setOptions({ start: sub.start, end: sub.end })
-    }
-
-    // ── Edit drawer ──
-    let editingSubId = null
-
-    function openEditDrawer(sub) {
-      editingSubId = sub.id
-      editStart.value = secondsToSrtTime(sub.start)
-      editEnd.value = secondsToSrtTime(sub.end)
-      editText.value = sub.text.replace(/\n/g, ' ')
-      editDrawer.classList.add('visible')
-      editText.focus()
-    }
-
-    function syncEditDrawer(sub) {
-      if (editingSubId !== sub.id) return
-      editStart.value = secondsToSrtTime(sub.start)
-      editEnd.value = secondsToSrtTime(sub.end)
-    }
-
-    function closeEditDrawer() {
-      editingSubId = null
-      editDrawer.classList.remove('visible')
-    }
-
-    editStart.addEventListener('change', () => {
-      const sub = subtitles.find(s => s.id === editingSubId)
-      if (!sub) return
-      const t = srtTimeToSeconds(editStart.value)
-      if (!isNaN(t)) { sub.start = t; updateRegionTime(sub); updateSubtitleRowTime(sub); pushHistory() }
-      else editStart.value = secondsToSrtTime(sub.start)
-    })
-
-    editEnd.addEventListener('change', () => {
-      const sub = subtitles.find(s => s.id === editingSubId)
-      if (!sub) return
-      const t = srtTimeToSeconds(editEnd.value)
-      if (!isNaN(t)) { sub.end = t; updateRegionTime(sub); pushHistory() }
-      else editEnd.value = secondsToSrtTime(sub.end)
-    })
-
-    editText.addEventListener('change', () => {
-      const sub = subtitles.find(s => s.id === editingSubId)
-      if (!sub) return
-      sub.text = editText.value
-      updateSubtitleRowText(sub)
-      const region = regions.getRegions().find(r => r.id === sub.id)
-      if (region) region.setOptions({ content: makeRegionLabel(sub.text) })
-      pushHistory()
-    })
-
-    // Enter in edit text = split subtitle at cursor position
-    editText.addEventListener('keydown', (e) => {
-      if (e.key !== 'Enter') return
-      e.preventDefault()
-
-      const sub = subtitles.find(s => s.id === editingSubId)
-      if (!sub) return
-
-      const cursor = editText.selectionStart
-      const fullText = editText.value
-      if (cursor === 0 || cursor === fullText.length) return
-
-      const textBefore = fullText.slice(0, cursor).trim()
-      const textAfter = fullText.slice(cursor).trim()
-      if (!textBefore || !textAfter) return
-
-      // Save original end before modifying
-      const origEnd = sub.end
-      const ratio = cursor / fullText.length
-      const splitTime = sub.start + (origEnd - sub.start) * ratio
-
-      // First half: update current subtitle
-      sub.text = textBefore
-      sub.end = splitTime
-
-      // Second half: insert new subtitle
-      const newId = `sub-${Date.now()}`
-      const newSub = {
-        id: newId,
-        index: sub.index + 1,
-        start: splitTime,
-        end: origEnd,
-        text: textAfter,
-      }
-
-      // Insert after current subtitle
-      const idx = subtitles.indexOf(sub)
-      subtitles.splice(idx + 1, 0, newSub)
-
-      // Re-index all subtitles
-      subtitles.forEach((s, i) => { s.index = i + 1 })
-
-      // Re-render everything
-      renderSubtitleList()
-      renderRegions()
-      pushHistory()
-
-      // Open edit drawer on the new subtitle
-      setActiveRegion(newId)
-      openEditDrawer(newSub)
-    })
-
-    // ── Active region ──
-    const ACTIVE_COLOR = 'rgba(34, 197, 94, 0.35)'
-    const INACTIVE_COLOR_FN = (i) => regionColors[i % regionColors.length]
-
-    function setActiveRegion(id) {
-      const prevId = activeRegion
-      activeRegion = id
-      subtitleList.querySelectorAll('.subtitle-item').forEach(el => {
-        el.classList.toggle('active', el.dataset.id === id)
-      })
-      const activeEl = subtitleList.querySelector(`[data-id="${id}"]`)
-      if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-
-      // Highlight active region on waveform
-      if (regions) {
-        // Reset previous
-        if (prevId && prevId !== id) {
-          const prevRegion = regions.getRegions().find(r => r.id === prevId)
-          const prevIdx = subtitles.findIndex(s => s.id === prevId)
-          if (prevRegion && prevIdx >= 0) {
-            prevRegion.setOptions({ color: INACTIVE_COLOR_FN(prevIdx) })
-          }
-        }
-        // Highlight current
-        const curRegion = regions.getRegions().find(r => r.id === id)
-        if (curRegion) {
-          curRegion.setOptions({ color: ACTIVE_COLOR })
-        }
-      }
-
-      // Update subtitle status bar
-      const sub = subtitles.find(s => s.id === id)
-      if (sub) {
-        infoStart.textContent = `${secondsToSrtTime(sub.start).replace(',', '.')} → ${secondsToSrtTime(sub.end).replace(',', '.')}`
-        const dur = (sub.end - sub.start).toFixed(2)
-        infoDuration.textContent = `${dur} 秒`
-        const chars = sub.text.replace(/\n/g, '').length
-        const cps = dur > 0 ? (chars / dur).toFixed(1) : '0'
-        infoChars.textContent = `${chars} 字　${cps} 字/秒`
-      }
-    }
-
-    function highlightCurrentSubtitle() {
-      if (!wavesurfer) return
-      const time = wavesurfer.getCurrentTime()
-      const current = subtitles.find(s => time >= s.start && time <= s.end)
-      if (current) {
-        setActiveRegion(current.id)
-        videoSubtitle.textContent = current.text
-        videoSubtitle.classList.add('visible')
-      } else {
-        videoSubtitle.classList.remove('visible')
-      }
-    }
-
-    function updateTimeDisplay() {
-      if (!wavesurfer) return
-      const c = wavesurfer.getCurrentTime()
-      const d = wavesurfer.getDuration()
-      timeDisplay.textContent = `${secondsToSrtTime(c).replace(',', '.')} / ${secondsToSrtTime(d).replace(',', '.')}`
-    }
-
-    function escapeHtml(str) {
-      return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    }
-
-    // ── Search ──
-    searchInput.addEventListener('input', () => {
-      const q = searchInput.value.toLowerCase()
-      subtitleList.querySelectorAll('.subtitle-item').forEach(el => {
-        const text = el.querySelector('.sub-text-display')?.textContent.toLowerCase() || ''
-        el.style.display = text.includes(q) ? '' : 'none'
-      })
-    })
-
-    // ── Load media ──
-    function loadMedia(file) {
-      const url = URL.createObjectURL(file)
-      const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm|mkv|avi)$/i.test(file.name)
-
-      if (isVideo) {
-        videoPreview.src = url
-        videoPanel.classList.add('visible')
-        // Set video panel width based on available space (50% of main content)
-        videoPanel.style.width = '60%'
-        initWaveSurfer(videoPreview)
-      } else {
-        videoPanel.classList.remove('visible')
-        videoPanel.style.width = ''
-        initWaveSurfer()
-        wavesurfer.load(url)
-      }
-
-      fileInfo.textContent = file.name
-      btnExport.disabled = false
-      btnCutDetect.disabled = false
-      // Reset cut markers when loading new media
-      cutMarkersVisible = false
-      cutMarkers = []
-      cutMarkerEls.forEach(el => el.remove())
-      cutMarkerEls = []
-      btnCutDetect.classList.remove('active')
-      btnCutDetect.textContent = '切點偵測'
-    }
-
-    // ── Load SRT ──
-    function loadSRT(file) {
-      srtFileName = file.name.replace(/\.srt$/i, '')
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        subtitles = parseSRT(e.target.result)
-        renderSubtitleList()
-        if (wavesurfer && wavesurfer.getDuration()) renderRegions()
-        fileInfo.textContent = (fileInfo.textContent ? fileInfo.textContent + ' + ' : '') + file.name
-        btnExport.disabled = false
-        btnAutoSplit.disabled = false
-        undoStack.length = 0
-        historyIndex = -1
-        pushHistory()
-      }
-      reader.readAsText(file)
-    }
-
-    // ── Button handlers ──
-    btnLoadMedia.addEventListener('click', () => inputMedia.click())
-    btnLoadSrt.addEventListener('click', () => inputSrt.click())
-    inputMedia.addEventListener('change', (e) => { if (e.target.files[0]) loadMedia(e.target.files[0]) })
-    inputSrt.addEventListener('change', (e) => { if (e.target.files[0]) loadSRT(e.target.files[0]) })
-    btnPlay.addEventListener('click', () => { if (wavesurfer) wavesurfer.playPause() })
-
-    btnExport.addEventListener('click', () => {
-      const srt = exportSRT()
-      const blob = new Blob([srt], { type: 'text/plain;charset=utf-8' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${srtFileName}_edit.srt`
-      a.click()
-      URL.revokeObjectURL(url)
-    })
-
-    speedSelect.addEventListener('change', () => {
-      if (wavesurfer) wavesurfer.setPlaybackRate(parseFloat(speedSelect.value))
-    })
-
-    zoomSlider.addEventListener('input', () => {
-      if (wavesurfer) wavesurfer.zoom(Number(zoomSlider.value))
-    })
-    zoomSlider.addEventListener('change', () => {
-      zoomSlider.blur()
-    })
-
-    // ── Keyboard shortcuts ──
-    document.addEventListener('keydown', (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
-        e.preventDefault()
-        if (e.shiftKey) redo(); else undo()
-        return
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-        e.preventDefault()
-        if (!btnExport.disabled) btnExport.click()
-        return
-      }
-      // Space = play/pause globally, unless typing in a text input
-      if (e.code === 'Space' && e.target.type !== 'text' && e.target.tagName !== 'TEXTAREA') {
-        e.preventDefault()
-        if (wavesurfer) wavesurfer.playPause()
-        return
-      }
-      const isEditing = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.contentEditable === 'true'
-      if (isEditing) {
-        if (e.key === 'Escape') { e.target.blur(); closeEditDrawer() }
-        return
-      }
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault()
-        if (wavesurfer) wavesurfer.skip(-5)
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault()
-        if (wavesurfer) wavesurfer.skip(5)
-      } else if (e.key === 'Escape') {
-        closeEditDrawer()
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && activeRegion) {
-        e.preventDefault()
-        const sub = subtitles.find(s => s.id === activeRegion)
-        if (!sub) return
-        subtitles = subtitles.filter(s => s.id !== activeRegion)
-        const region = regions.getRegions().find(r => r.id === activeRegion)
-        if (region) region.remove()
-        subtitles.forEach((s, i) => { s.index = i + 1 })
-        activeRegion = null
-        renderSubtitleList()
-        closeEditDrawer()
-        pushHistory()
-      }
-    })
-
-    // ── Timeline ruler click/drag to seek ──
-    const timelineEl = document.getElementById('waveform-timeline')
-    function seekFromTimeline(e) {
-      if (!wavesurfer) return
-      const rect = timelineEl.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const ratio = x / rect.width
-      const duration = wavesurfer.getDuration()
-      if (duration) wavesurfer.setTime(ratio * duration)
-    }
-
-    let timelineDragging = false
-    timelineEl.addEventListener('mousedown', (e) => {
-      timelineDragging = true
-      seekFromTimeline(e)
-    })
-    document.addEventListener('mousemove', (e) => {
-      if (timelineDragging) seekFromTimeline(e)
-    })
-    document.addEventListener('mouseup', () => {
-      timelineDragging = false
-    })
-
-    // ── Horizontal scroll on waveform = scrub playhead ──
-    const waveformEl = document.getElementById('waveform')
-    waveformEl.addEventListener('wheel', (e) => {
-      if (!wavesurfer || !e.deltaX) return
-      // Only intercept horizontal scroll when not zoomed (no native scrollbar)
-      const hasScrollbar = waveformEl.scrollWidth > waveformEl.clientWidth
-      if (hasScrollbar) return // let native scroll handle it when zoomed
-
-      e.preventDefault()
-      const duration = wavesurfer.getDuration()
-      if (!duration) return
-      const current = wavesurfer.getCurrentTime()
-      const step = duration * 0.01 * Math.sign(e.deltaX) // 1% per scroll tick
-      const newTime = Math.max(0, Math.min(duration, current + step))
-      wavesurfer.setTime(newTime)
-    }, { passive: false })
-
-    timelineEl.addEventListener('wheel', (e) => {
-      if (!wavesurfer || !e.deltaX) return
-      e.preventDefault()
-      const duration = wavesurfer.getDuration()
-      if (!duration) return
-      const current = wavesurfer.getCurrentTime()
-      const step = duration * 0.01 * Math.sign(e.deltaX)
-      const newTime = Math.max(0, Math.min(duration, current + step))
-      wavesurfer.setTime(newTime)
-    }, { passive: false })
-
-    // ── Drag & drop ──
-    let dragCounter = 0
-
-    document.addEventListener('dragenter', (e) => {
-      e.preventDefault()
-      dragCounter++
-      dropOverlay.classList.add('visible')
-    })
-    document.addEventListener('dragleave', (e) => {
-      e.preventDefault()
-      dragCounter--
-      if (dragCounter === 0) dropOverlay.classList.remove('visible')
-    })
-    document.addEventListener('dragover', (e) => e.preventDefault())
-    document.addEventListener('drop', (e) => {
-      e.preventDefault()
-      dragCounter = 0
-      dropOverlay.classList.remove('visible')
-      for (const file of e.dataTransfer.files) {
-        if (file.name.endsWith('.srt')) loadSRT(file)
-        else if (file.type.startsWith('audio/') || file.type.startsWith('video/') || /\.(mp3|wav|ogg|m4a|flac|aac|webm|mp4|mov|mkv|avi)$/i.test(file.name)) loadMedia(file)
-      }
-    })
-  </script>
 </body>
 </html>
