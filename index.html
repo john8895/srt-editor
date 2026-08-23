@@ -230,7 +230,7 @@
 
     .subtitle-item {
       display: grid;
-      grid-template-columns: 32px 1fr auto 28px;
+      grid-template-columns: 32px 1fr auto 32px 28px;
       align-items: center;
       gap: 6px;
       padding: 5px 12px;
@@ -287,6 +287,13 @@
       background: #e8e8e8;
       color: #555;
     }
+    .subtitle-item .char-count {
+      font-family: 'SF Mono', 'Menlo', monospace;
+      font-size: 10px;
+      color: #aaa;
+      text-align: right;
+    }
+    .subtitle-item .char-count.over { color: #ef4444; font-weight: 600; }
     .subtitle-item .delete-btn {
       background: none;
       border: none;
@@ -547,6 +554,7 @@
     <span><kbd>←</kbd><kbd>→</kbd> ±5s</span>
     <span><kbd>⌘Z</kbd> 復原</span>
     <span><kbd>⌘⇧Z</kbd> 重做</span>
+    <span><kbd>Del</kbd> 刪除字幕</span>
     <span><kbd>⌘S</kbd> 匯出</span>
   </div>
 
@@ -810,6 +818,46 @@
           region.element.style.borderRadius = '6px'
           region.element.style.border = '1px solid rgba(0, 0, 0, 0.12)'
         }
+
+        // Handle user-created regions (drag on waveform)
+        if (!region.id.startsWith('sub-') && !region.id.startsWith('cut-')) {
+          const newId = `sub-${Date.now()}`
+          const newSub = {
+            id: newId,
+            index: subtitles.length + 1,
+            start: region.start,
+            end: region.end,
+            text: '',
+          }
+          subtitles.push(newSub)
+          subtitles.sort((a, b) => a.start - b.start)
+          subtitles.forEach((s, i) => { s.index = i + 1 })
+
+          // Remove the temp region, re-render all
+          region.remove()
+          renderSubtitleList()
+          renderRegions()
+          pushHistory()
+
+          // Activate and open edit for the new subtitle
+          setActiveRegion(newId)
+          // Find the text element and focus it
+          setTimeout(() => {
+            const row = subtitleList.querySelector(`[data-id="${newId}"]`)
+            if (row) {
+              const textEl = row.querySelector('.sub-text-display')
+              if (textEl) {
+                textEl.contentEditable = 'true'
+                textEl.focus()
+              }
+            }
+          }, 50)
+        }
+      })
+
+      // Enable drag selection on waveform to create new subtitles
+      regions.enableDragSelection({
+        color: 'rgba(34, 197, 94, 0.2)',
       })
 
       regions.on('region-clicked', (region, e) => {
@@ -1230,10 +1278,12 @@
         const row = document.createElement('div')
         row.className = 'subtitle-item'
         row.dataset.id = sub.id
+        const charLen = sub.text.replace(/\n/g, '').length
         row.innerHTML = `
           <span class="index">${sub.index}</span>
           <span class="sub-text-display" contenteditable="false">${escapeHtml(sub.text.replace(/\n/g, ' '))}</span>
           <span class="sub-time">${shortTime(sub.start)}</span>
+          <span class="char-count ${charLen > 16 ? 'over' : ''}">${charLen}</span>
           <button class="delete-btn" title="刪除">×</button>
         `
 
@@ -1313,6 +1363,12 @@
       const row = subtitleList.querySelector(`[data-id="${sub.id}"]`)
       if (!row) return
       row.querySelector('.sub-text-display').textContent = sub.text.replace(/\n/g, ' ')
+      const charLen = sub.text.replace(/\n/g, '').length
+      const countEl = row.querySelector('.char-count')
+      if (countEl) {
+        countEl.textContent = charLen
+        countEl.classList.toggle('over', charLen > 16)
+      }
     }
 
     function updateRegionTime(sub) {
@@ -1422,13 +1478,35 @@
     })
 
     // ── Active region ──
+    const ACTIVE_COLOR = 'rgba(34, 197, 94, 0.35)'
+    const INACTIVE_COLOR_FN = (i) => regionColors[i % regionColors.length]
+
     function setActiveRegion(id) {
+      const prevId = activeRegion
       activeRegion = id
       subtitleList.querySelectorAll('.subtitle-item').forEach(el => {
         el.classList.toggle('active', el.dataset.id === id)
       })
       const activeEl = subtitleList.querySelector(`[data-id="${id}"]`)
       if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+
+      // Highlight active region on waveform
+      if (regions) {
+        // Reset previous
+        if (prevId && prevId !== id) {
+          const prevRegion = regions.getRegions().find(r => r.id === prevId)
+          const prevIdx = subtitles.findIndex(s => s.id === prevId)
+          if (prevRegion && prevIdx >= 0) {
+            prevRegion.setOptions({ color: INACTIVE_COLOR_FN(prevIdx) })
+          }
+        }
+        // Highlight current
+        const curRegion = regions.getRegions().find(r => r.id === id)
+        if (curRegion) {
+          curRegion.setOptions({ color: ACTIVE_COLOR })
+        }
+      }
+
       // Update subtitle status bar
       const sub = subtitles.find(s => s.id === id)
       if (sub) {
@@ -1569,7 +1647,8 @@
         if (wavesurfer) wavesurfer.playPause()
         return
       }
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+      const isEditing = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.contentEditable === 'true'
+      if (isEditing) {
         if (e.key === 'Escape') { e.target.blur(); closeEditDrawer() }
         return
       }
@@ -1581,6 +1660,18 @@
         if (wavesurfer) wavesurfer.skip(5)
       } else if (e.key === 'Escape') {
         closeEditDrawer()
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && activeRegion) {
+        e.preventDefault()
+        const sub = subtitles.find(s => s.id === activeRegion)
+        if (!sub) return
+        subtitles = subtitles.filter(s => s.id !== activeRegion)
+        const region = regions.getRegions().find(r => r.id === activeRegion)
+        if (region) region.remove()
+        subtitles.forEach((s, i) => { s.index = i + 1 })
+        activeRegion = null
+        renderSubtitleList()
+        closeEditDrawer()
+        pushHistory()
       }
     })
 
