@@ -6,9 +6,12 @@
 
 ## 使用
 
-下載 `app.html`，用瀏覽器打開，拖放影片和 SRT 檔案進去。
+- **線上版**：[john8895.github.io/srt-editor](https://john8895.github.io/srt-editor/)
+- **離線版**：下載 `app-offline.html`，用瀏覽器打開即可，不需要網路
 
-> 需要網路連線（wavesurfer.js 從 CDN 載入）。
+拖放影片和 SRT 檔案進去就能開始編輯。
+
+> 🔒 所有處理都在瀏覽器本機完成，影片和字幕不會上傳到任何伺服器。
 
 ## 功能
 
@@ -46,6 +49,7 @@
 - [wavesurfer.js](https://wavesurfer.xyz/) v7 — 波形圖 + Regions + Timeline 插件
 - 純前端，無需安裝、無需 build
 - 支援音檔（mp3/wav/ogg/m4a）和影片（mp4/mov/webm）
+- 介面設計參考 [WhatSub](https://whatsub.equal2.app/)
 
 ## 授權
 
