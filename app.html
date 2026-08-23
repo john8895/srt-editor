@@ -174,6 +174,23 @@
       letter-spacing: 0.5px;
     }
     .video-subtitle.visible { display: block; }
+    .speed-toast {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      font-size: 32px;
+      font-weight: 700;
+      padding: 12px 24px;
+      border-radius: 8px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 10;
+    }
+    .speed-toast.visible { opacity: 1; }
     /* ── Subtitle status bar (bottom of subtitle panel) ── */
     .subtitle-status {
       display: flex;
@@ -201,11 +218,43 @@
     }
     .subtitle-header {
       display: flex;
-      align-items: center;
-      gap: 8px;
+      flex-direction: column;
+      gap: 6px;
       padding: 8px 12px;
       background: #fff;
       border-bottom: 1px solid #e0e0e0;
+      flex-shrink: 0;
+    }
+    .search-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .search-row .match-count {
+      font-size: 11px;
+      color: #999;
+      white-space: nowrap;
+      font-family: 'SF Mono', 'Menlo', monospace;
+    }
+    .replace-row {
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+    .replace-row.visible { display: flex; }
+    .replace-row input {
+      flex: 1;
+      background: #f5f5f5;
+      border: 1px solid #d0d0d0;
+      border-radius: 5px;
+      color: #333;
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+    .replace-row input:focus { border-color: #22c55e; outline: none; }
+    .replace-row .arrow-label {
+      font-size: 12px;
+      color: #aaa;
       flex-shrink: 0;
     }
     .subtitle-header .search-input {
@@ -219,6 +268,18 @@
     }
     .subtitle-header .search-input::placeholder { color: #aaa; }
     .subtitle-header .search-input:focus { border-color: #22c55e; outline: none; }
+    .search-clear {
+      background: none;
+      border: none;
+      color: #aaa;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 3px;
+      display: none;
+    }
+    .search-clear:hover { color: #555; }
+    .search-clear.visible { display: block; }
 
     .subtitle-list {
       flex: 1;
@@ -287,6 +348,12 @@
     .subtitle-item .sub-time:hover {
       background: #e8e8e8;
       color: #555;
+    }
+    .subtitle-item .sub-text-display mark {
+      background: #fde047;
+      color: #111;
+      border-radius: 2px;
+      padding: 0 1px;
     }
     .subtitle-item .char-count {
       font-family: 'SF Mono', 'Menlo', monospace;
@@ -385,6 +452,33 @@
       color: #22c55e;
     }
     .drop-overlay.visible { display: flex; }
+
+    /* ── Loading overlay ── */
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .loading-overlay.visible { display: flex; }
+    .loading-spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(255,255,255,0.2);
+      border-top-color: #22c55e;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text {
+      color: #fff;
+      font-size: 14px;
+    }
 
     /* ── Cut detect button active state ── */
     .btn.active {
@@ -494,6 +588,8 @@
         <option value="1.25">1.25x</option>
         <option value="1.5">1.5x</option>
         <option value="2">2x</option>
+        <option value="3">3x</option>
+        <option value="4">4x</option>
       </select>
     </div>
     <div class="spacer"></div>
@@ -515,12 +611,22 @@
       <div class="video-area">
         <video id="video-preview" playsinline controls></video>
         <div class="video-subtitle" id="video-subtitle"></div>
+        <div class="speed-toast" id="speed-toast"></div>
       </div>
     </div>
 
     <div class="subtitle-panel">
       <div class="subtitle-header">
-        <input class="search-input" id="search-input" type="text" placeholder="搜尋字幕...">
+        <div class="search-row">
+          <input class="search-input" id="search-input" type="text" placeholder="搜尋字幕...">
+          <button class="search-clear" id="search-clear" title="清除">×</button>
+          <span class="match-count" id="match-count"></span>
+        </div>
+        <div class="replace-row" id="replace-row">
+          <span class="arrow-label">→</span>
+          <input type="text" id="replace-input" placeholder="取代為...">
+          <button class="btn" id="btn-replace-all">全部取代</button>
+        </div>
       </div>
       <div class="subtitle-list" id="subtitle-list">
         <div class="empty-state" id="empty-state">
@@ -560,6 +666,10 @@
   </div>
 
   <div class="drop-overlay" id="drop-overlay">拖放影片／音檔或 SRT</div>
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loading-text">載入中...</div>
+  </div>
 
   <input type="file" id="input-media" accept="audio/*,video/*,.mp4,.mov,.webm,.mkv,.avi" hidden>
   <input type="file" id="input-srt" accept=".srt" hidden>
@@ -702,6 +812,29 @@
     const speedSelect = $('#speed-select')
     const zoomSlider = $('#zoom-slider')
     const dropOverlay = $('#drop-overlay')
+    const loadingOverlay = $('#loading-overlay')
+    const loadingText = $('#loading-text')
+
+    // ── Speed toast ──
+    const speedToast = $('#speed-toast')
+    let speedToastTimer = null
+
+    function showSpeedToast(rate) {
+      speedToast.textContent = `${rate}x`
+      speedToast.classList.add('visible')
+      clearTimeout(speedToastTimer)
+      speedToastTimer = setTimeout(() => {
+        speedToast.classList.remove('visible')
+      }, 1200)
+    }
+
+    function showLoading(text = '載入中...') {
+      loadingText.textContent = text
+      loadingOverlay.classList.add('visible')
+    }
+    function hideLoading() {
+      loadingOverlay.classList.remove('visible')
+    }
     const btnAutoSplit = $('#btn-auto-split')
     const btnCutDetect = $('#btn-cut-detect')
     const btnPrevSub = $('#btn-prev-sub')
@@ -768,6 +901,7 @@
       wavesurfer.on('ready', () => {
         updateTimeDisplay()
         if (subtitles.length > 0) renderRegions()
+        hideLoading()
       })
 
       wavesurfer.on('audioprocess', () => {
@@ -1520,15 +1654,81 @@
       }
     }
 
+    function renderKaraokeText(container, text, progress) {
+      const chars = text.replace(/\n/g, ' ').split('')
+      const currentIdx = Math.min(Math.floor(chars.length * progress), chars.length - 1)
+      container.innerHTML = ''
+      chars.forEach((ch, i) => {
+        const span = document.createElement('span')
+        span.textContent = ch
+        if (i === currentIdx) {
+          span.style.color = '#fff'
+          span.style.background = 'rgba(34, 197, 94, 0.6)'
+          span.style.borderRadius = '2px'
+        } else {
+          span.style.color = '#fff'
+        }
+        container.appendChild(span)
+      })
+    }
+
+    let lastKaraokeId = null
+
+    function clearKaraoke(subId) {
+      if (!subId) return
+      const row = subtitleList.querySelector(`[data-id="${subId}"]`)
+      if (row) {
+        const textEl = row.querySelector('.sub-text-display')
+        if (textEl && textEl.contentEditable !== 'true') {
+          const sub = subtitles.find(s => s.id === subId)
+          if (sub) textEl.textContent = sub.text.replace(/\n/g, ' ')
+        }
+      }
+    }
+
     function highlightCurrentSubtitle() {
       if (!wavesurfer) return
       const time = wavesurfer.getCurrentTime()
       const current = subtitles.find(s => time >= s.start && time <= s.end)
       if (current) {
+        // Clear previous karaoke if switching to a different subtitle
+        if (lastKaraokeId && lastKaraokeId !== current.id) {
+          clearKaraoke(lastKaraokeId)
+        }
+        lastKaraokeId = current.id
+
         setActiveRegion(current.id)
-        videoSubtitle.textContent = current.text
+        const progress = (time - current.start) / (current.end - current.start)
+
+        // Video subtitle: karaoke
         videoSubtitle.classList.add('visible')
+        renderKaraokeText(videoSubtitle, current.text, progress)
+
+        // Subtitle list: karaoke on active row
+        const row = subtitleList.querySelector(`[data-id="${current.id}"]`)
+        if (row) {
+          const textEl = row.querySelector('.sub-text-display')
+          if (textEl && textEl.contentEditable !== 'true') {
+            const chars = current.text.replace(/\n/g, ' ').split('')
+            const currentCharIdx = Math.min(Math.floor(chars.length * progress), chars.length - 1)
+            textEl.innerHTML = ''
+            chars.forEach((ch, i) => {
+              const span = document.createElement('span')
+              span.textContent = ch
+              if (i === currentCharIdx) {
+                span.style.background = 'rgba(34, 197, 94, 0.35)'
+                span.style.borderRadius = '2px'
+              }
+              textEl.appendChild(span)
+            })
+          }
+        }
       } else {
+        // No current subtitle — clear previous karaoke
+        if (lastKaraokeId) {
+          clearKaraoke(lastKaraokeId)
+          lastKaraokeId = null
+        }
         videoSubtitle.classList.remove('visible')
       }
     }
@@ -1544,17 +1744,103 @@
       return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     }
 
-    // ── Search ──
-    searchInput.addEventListener('input', () => {
-      const q = searchInput.value.toLowerCase()
+    // ── Search & Replace ──
+    const replaceRow = $('#replace-row')
+    const replaceInput = $('#replace-input')
+    const btnReplaceAll = $('#btn-replace-all')
+    const matchCount = $('#match-count')
+
+    function doSearch() {
+      const q = searchInput.value
+      const ql = q.toLowerCase()
+
+      // Show/hide replace row
+      replaceRow.classList.toggle('visible', q.length > 0)
+
+      let total = 0
       subtitleList.querySelectorAll('.subtitle-item').forEach(el => {
-        const text = el.querySelector('.sub-text-display')?.textContent.toLowerCase() || ''
-        el.style.display = text.includes(q) ? '' : 'none'
+        const textEl = el.querySelector('.sub-text-display')
+        if (!textEl) return
+        const sub = subtitles.find(s => s.id === el.dataset.id)
+        if (!sub) return
+
+        const text = sub.text.replace(/\n/g, ' ')
+
+        if (q && text.toLowerCase().includes(ql)) {
+          el.style.display = ''
+          // Count matches in this subtitle
+          let count = 0
+          let idx = text.toLowerCase().indexOf(ql)
+          while (idx !== -1) {
+            count++
+            idx = text.toLowerCase().indexOf(ql, idx + 1)
+          }
+          total += count
+
+          // Highlight matches
+          if (textEl.contentEditable !== 'true') {
+            const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            const regex = new RegExp(`(${escaped})`, 'gi')
+            textEl.innerHTML = escapeHtml(text).replace(regex, '<mark>$1</mark>')
+          }
+        } else if (q) {
+          el.style.display = 'none'
+          if (textEl.contentEditable !== 'true') {
+            textEl.textContent = text
+          }
+        } else {
+          el.style.display = ''
+          if (textEl.contentEditable !== 'true') {
+            textEl.textContent = text
+          }
+        }
       })
+
+      matchCount.textContent = q ? `${total} 處` : ''
+    }
+
+    const searchClear = $('#search-clear')
+
+    searchInput.addEventListener('input', () => {
+      searchClear.classList.toggle('visible', searchInput.value.length > 0)
+      doSearch()
+    })
+
+    searchClear.addEventListener('click', () => {
+      searchInput.value = ''
+      searchClear.classList.remove('visible')
+      doSearch()
+      searchInput.focus()
+    })
+
+    btnReplaceAll.addEventListener('click', () => {
+      const q = searchInput.value
+      const r = replaceInput.value
+      if (!q) return
+
+      let count = 0
+      subtitles.forEach(sub => {
+        const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
+        const newText = sub.text.replace(regex, (match) => { count++; return r })
+        if (newText !== sub.text) {
+          sub.text = newText
+        }
+      })
+
+      if (count > 0) {
+        renderSubtitleList()
+        renderRegions()
+        pushHistory()
+        // Re-run search to update highlights
+        doSearch()
+        btnReplaceAll.textContent = `已取代 ${count} 處`
+        setTimeout(() => { btnReplaceAll.textContent = '全部取代' }, 2000)
+      }
     })
 
     // ── Load media ──
     function loadMedia(file) {
+      showLoading('載入媒體中...')
       const url = URL.createObjectURL(file)
       const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm|mkv|avi)$/i.test(file.name)
 
@@ -1588,6 +1874,7 @@
     let mediaFileName = ''
 
     function loadSRT(file) {
+      showLoading('載入字幕中...')
       srtFileName = file.name.replace(/\.srt$/i, '')
       const reader = new FileReader()
       reader.onload = (e) => {
@@ -1617,6 +1904,16 @@
         btnNextSub.style.display = 'none'
         btnSnapOne.style.display = 'none'
         btnSnapAll.style.display = 'none'
+
+        // Auto-zoom: target ~30 seconds visible at a time
+        if (wavesurfer && subtitles.length > 0) {
+          const waveformWidth = document.getElementById('waveform').clientWidth
+          const targetVisible = 30 // seconds visible at once
+          const pxPerSec = waveformWidth / targetVisible
+          wavesurfer.zoom(pxPerSec)
+          zoomSlider.value = Math.min(pxPerSec, 500)
+        }
+        hideLoading()
       }
       reader.readAsText(file)
     }
@@ -1640,7 +1937,11 @@
     })
 
     speedSelect.addEventListener('change', () => {
-      if (wavesurfer) wavesurfer.setPlaybackRate(parseFloat(speedSelect.value))
+      if (wavesurfer) {
+        const rate = parseFloat(speedSelect.value)
+        wavesurfer.setPlaybackRate(rate)
+        showSpeedToast(rate)
+      }
     })
 
     zoomSlider.addEventListener('input', () => {
@@ -1679,6 +1980,26 @@
       } else if (e.key === 'ArrowRight') {
         e.preventDefault()
         if (wavesurfer) wavesurfer.skip(5)
+      } else if (e.key === '>' && e.shiftKey) {
+        e.preventDefault()
+        if (wavesurfer) {
+          const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]
+          const cur = wavesurfer.getPlaybackRate()
+          const next = speeds.find(s => s > cur) || speeds[speeds.length - 1]
+          wavesurfer.setPlaybackRate(next)
+          speedSelect.value = next
+          showSpeedToast(next)
+        }
+      } else if (e.key === '<' && e.shiftKey) {
+        e.preventDefault()
+        if (wavesurfer) {
+          const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]
+          const cur = wavesurfer.getPlaybackRate()
+          const prev = [...speeds].reverse().find(s => s < cur) || speeds[0]
+          wavesurfer.setPlaybackRate(prev)
+          speedSelect.value = prev
+          showSpeedToast(prev)
+        }
       } else if (e.key === 'Escape') {
         closeEditDrawer()
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && activeRegion) {
@@ -1765,9 +2086,20 @@
       e.preventDefault()
       dragCounter = 0
       dropOverlay.classList.remove('visible')
+      let mediaFile = null
+      let srtFile = null
       for (const file of e.dataTransfer.files) {
-        if (file.name.endsWith('.srt')) loadSRT(file)
-        else if (file.type.startsWith('audio/') || file.type.startsWith('video/') || /\.(mp3|wav|ogg|m4a|flac|aac|webm|mp4|mov|mkv|avi)$/i.test(file.name)) loadMedia(file)
+        if (file.name.endsWith('.srt')) srtFile = file
+        else if (file.type.startsWith('audio/') || file.type.startsWith('video/') || /\.(mp3|wav|ogg|m4a|flac|aac|webm|mp4|mov|mkv|avi)$/i.test(file.name)) mediaFile = file
+      }
+      // Load media first, then SRT after wavesurfer is ready
+      if (mediaFile && srtFile) {
+        loadMedia(mediaFile)
+        wavesurfer.once('ready', () => loadSRT(srtFile))
+      } else if (mediaFile) {
+        loadMedia(mediaFile)
+      } else if (srtFile) {
+        loadSRT(srtFile)
       }
     })
   </script>
