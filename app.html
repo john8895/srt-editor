@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SRT Editor</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2322c55e'/><text x='50' y='68' font-size='50' font-family='system-ui' font-weight='700' fill='white' text-anchor='middle'>S</text></svg>">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -1570,7 +1571,8 @@
         wavesurfer.load(url)
       }
 
-      fileInfo.textContent = file.name
+      mediaFileName = file.name
+      fileInfo.textContent = subtitles.length > 0 ? file.name + ' + ' + srtFileName + '.srt' : file.name
       btnExport.disabled = false
       btnCutDetect.disabled = false
       // Reset cut markers when loading new media
@@ -1583,19 +1585,38 @@
     }
 
     // ── Load SRT ──
+    let mediaFileName = ''
+
     function loadSRT(file) {
       srtFileName = file.name.replace(/\.srt$/i, '')
       const reader = new FileReader()
       reader.onload = (e) => {
+        // Clear old state
+        subtitles = []
+        activeRegion = null
+        if (regions) regions.clearRegions()
+        closeEditDrawer()
+
+        // Load new
         subtitles = parseSRT(e.target.result)
         renderSubtitleList()
         if (wavesurfer && wavesurfer.getDuration()) renderRegions()
-        fileInfo.textContent = (fileInfo.textContent ? fileInfo.textContent + ' + ' : '') + file.name
+        fileInfo.textContent = mediaFileName ? mediaFileName + ' + ' + file.name : file.name
         btnExport.disabled = false
         btnAutoSplit.disabled = false
         undoStack.length = 0
         historyIndex = -1
         pushHistory()
+
+        // Reset cut detection
+        cutMarkersVisible = false
+        cutMarkers = []
+        btnCutDetect.classList.remove('active')
+        btnCutDetect.textContent = '切點偵測'
+        btnPrevSub.style.display = 'none'
+        btnNextSub.style.display = 'none'
+        btnSnapOne.style.display = 'none'
+        btnSnapAll.style.display = 'none'
       }
       reader.readAsText(file)
     }

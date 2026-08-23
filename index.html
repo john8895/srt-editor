@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SRT Editor — 字幕時間軸編輯器</title>
   <meta name="description" content="免費線上 SRT 字幕編輯器。波形圖拖拉調整時間軸、切點偵測、自動斷句，單檔 HTML 離線可用。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2322c55e'/><text x='50' y='68' font-size='50' font-family='system-ui' font-weight='700' fill='white' text-anchor='middle'>S</text></svg>">
+  <meta property="og:title" content="SRT Editor — 字幕時間軸編輯器">
+  <meta property="og:description" content="免費線上 SRT 字幕編輯器。波形圖拖拉調整時間軸、切點偵測、自動斷句，單檔 HTML 離線可用。">
+  <meta property="og:image" content="https://john8895.github.io/srt-editor/screenshot.png">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -93,24 +99,12 @@
     .screenshot-dot:nth-child(2) { background: #eab308; }
     .screenshot-dot:nth-child(3) { background: #22c55e; }
     .screenshot-content {
-      background: #f5f5f5;
       border-radius: 6px;
-      padding: 40px;
-      text-align: center;
-      color: #888;
-      font-size: 14px;
+      overflow: hidden;
     }
-    .screenshot-content .mock-wave {
-      height: 60px;
-      background: linear-gradient(90deg,
-        transparent 0%, #22c55e33 5%, #22c55e66 10%, #22c55e33 15%,
-        transparent 20%, #22c55e33 25%, #22c55e99 30%, #22c55e33 35%,
-        transparent 40%, #22c55e33 50%, #22c55ecc 55%, #22c55e33 60%,
-        transparent 65%, #22c55e33 70%, #22c55e66 75%, #22c55e33 80%,
-        transparent 85%, #22c55e33 90%, #22c55e55 95%, transparent 100%
-      );
-      border-radius: 6px;
-      margin-bottom: 16px;
+    .screenshot-content img {
+      width: 100%;
+      display: block;
     }
 
     /* ── Features ── */
@@ -128,11 +122,17 @@
     }
     .feature-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 24px;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 640px) {
+      .feature-grid { grid-template-columns: 1fr; }
     }
     .feature-card {
-      padding: 24px;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 20px 24px;
       background: #fff;
       border: 1px solid #e8e8e8;
       border-radius: 10px;
@@ -140,17 +140,28 @@
     }
     .feature-card:hover { border-color: #22c55e; }
     .feature-card .icon {
-      font-size: 28px;
-      margin-bottom: 12px;
+      font-size: 24px;
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f0fdf4;
+      border-radius: 8px;
+      color: #22c55e;
+    }
+    .feature-card .feature-text {
+      flex: 1;
     }
     .feature-card h3 {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
-      margin-bottom: 8px;
+      margin-bottom: 4px;
       color: #111;
     }
     .feature-card p {
-      font-size: 14px;
+      font-size: 13px;
       color: #666;
       line-height: 1.5;
     }
@@ -234,8 +245,7 @@
         <div class="screenshot-dot"></div>
       </div>
       <div class="screenshot-content">
-        <div class="mock-wave"></div>
-        載入影片 + SRT，波形圖上直接拖拉調整字幕時間
+        <img src="screenshot.png" alt="SRT Editor 介面截圖">
       </div>
     </div>
   </div>
@@ -245,33 +255,45 @@
     <div class="feature-grid">
       <div class="feature-card">
         <div class="icon">~</div>
-        <h3>波形圖編輯</h3>
-        <p>拖拉、拉伸字幕區段，直覺調整起止時間。磁吸對齊游標線與相鄰字幕。</p>
+        <div class="feature-text">
+          <h3>波形圖編輯</h3>
+          <p>拖拉、拉伸字幕區段，直覺調整起止時間。磁吸對齊游標線與相鄰字幕。</p>
+        </div>
       </div>
       <div class="feature-card">
         <div class="icon">||</div>
-        <h3>切點偵測</h3>
-        <p>自動分析音頻靜音區段，標記語音斷點。一鍵自動修正所有字幕時間。</p>
+        <div class="feature-text">
+          <h3>切點偵測</h3>
+          <p>自動分析音頻靜音區段，標記語音斷點。一鍵自動修正所有字幕時間。</p>
+        </div>
       </div>
       <div class="feature-card">
         <div class="icon">Aa</div>
-        <h3>自動斷句</h3>
-        <p>依台灣中文用語習慣，在標點、助詞、連接詞處智慧斷句（16 字上限）。</p>
+        <div class="feature-text">
+          <h3>自動斷句</h3>
+          <p>依台灣中文用語習慣，在標點、助詞、連接詞處智慧斷句（16 字上限）。</p>
+        </div>
       </div>
       <div class="feature-card">
         <div class="icon">[]</div>
-        <h3>影片預覽</h3>
-        <p>左側即時預覽影片，字幕疊加顯示。支援 MP4、MOV、WebM 等格式。</p>
+        <div class="feature-text">
+          <h3>影片預覽</h3>
+          <p>左側即時預覽影片，字幕疊加顯示。支援 MP4、MOV、WebM 等格式。</p>
+        </div>
       </div>
       <div class="feature-card">
         <div class="icon">#</div>
-        <h3>字數提示</h3>
-        <p>每行顯示字數，超過 16 字自動標紅。底部狀態列顯示字/秒語速。</p>
+        <div class="feature-text">
+          <h3>字數提示</h3>
+          <p>每行顯示字數，超過 16 字自動標紅。底部狀態列顯示字/秒語速。</p>
+        </div>
       </div>
       <div class="feature-card">
         <div class="icon">&lt;&gt;</div>
-        <h3>單檔 HTML</h3>
-        <p>不需安裝、不需 build。下載一個檔案，瀏覽器打開就能用。</p>
+        <div class="feature-text">
+          <h3>單檔 HTML</h3>
+          <p>不需安裝、不需 build。下載一個檔案，瀏覽器打開就能用。</p>
+        </div>
       </div>
     </div>
   </div>
@@ -303,7 +325,7 @@
   </div>
 
   <div class="footer">
-    <a href="https://github.com/john8895/srt-editor">GitHub</a> · MIT License · 使用 <a href="https://wavesurfer.xyz/">wavesurfer.js</a>（BSD-3-Clause）
+    <a href="https://github.com/john8895/srt-editor">GitHub</a> · MIT License · 使用 <a href="https://wavesurfer.xyz/">wavesurfer.js</a>（BSD-3-Clause）· 介面設計參考 <a href="https://whatsub.equal2.app/">WhatSub</a>
   </div>
 
 </body>
