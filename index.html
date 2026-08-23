@@ -78,33 +78,11 @@
       margin: 0 auto;
       padding: 0 24px 60px;
     }
-    .screenshot-frame {
-      background: #111;
-      border-radius: 12px;
-      padding: 8px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
-    }
-    .screenshot-bar {
-      display: flex;
-      gap: 6px;
-      padding: 8px 12px;
-    }
-    .screenshot-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: #333;
-    }
-    .screenshot-dot:nth-child(1) { background: #ef4444; }
-    .screenshot-dot:nth-child(2) { background: #eab308; }
-    .screenshot-dot:nth-child(3) { background: #22c55e; }
-    .screenshot-content {
-      border-radius: 6px;
-      overflow: hidden;
-    }
-    .screenshot-content img {
+    .screenshot img {
       width: 100%;
       display: block;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.12);
     }
 
     /* ── Features ── */
@@ -213,6 +191,63 @@
       line-height: 1.5;
     }
 
+    /* ── FAQ ── */
+    .faq {
+      --sec-w: 720px;
+      --edge: clamp(20px, 5vw, 48px);
+      width: 100%;
+      max-width: calc(var(--sec-w) + var(--edge) * 2);
+      margin: 0 auto;
+      padding: 48px var(--edge) clamp(80px, 10vw, 130px);
+      box-sizing: border-box;
+    }
+    .faq h2 {
+      text-align: center;
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 24px;
+      color: #111;
+      letter-spacing: 0.3em;
+    }
+    .faq-list {
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 0 28px;
+      background: #fff;
+      width: 100%;
+    }
+    .faq-item {
+      border-bottom: 1px solid #e8e8e8;
+    }
+    .faq-item:last-child { border-bottom: none; }
+    .faq-item summary {
+      padding: 20px 0;
+      font-size: 15px;
+      font-weight: 600;
+      color: #333;
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .faq-item summary::after {
+      content: '+';
+      font-size: 20px;
+      color: #aaa;
+      font-weight: 300;
+      flex-shrink: 0;
+      margin-left: 16px;
+    }
+    .faq-item[open] summary::after { content: '×'; }
+    .faq-item summary::-webkit-details-marker { display: none; }
+    .faq-item p {
+      padding: 0 0 20px;
+      font-size: 14px;
+      color: #666;
+      line-height: 1.7;
+    }
+
     /* ── Privacy ── */
     .privacy {
       max-width: 960px;
@@ -269,16 +304,7 @@
   </div>
 
   <div class="screenshot">
-    <div class="screenshot-frame">
-      <div class="screenshot-bar">
-        <div class="screenshot-dot"></div>
-        <div class="screenshot-dot"></div>
-        <div class="screenshot-dot"></div>
-      </div>
-      <div class="screenshot-content">
-        <img src="screenshot.png" alt="SRT Editor 介面截圖">
-      </div>
-    </div>
+    <img src="screenshot.png" alt="SRT Editor 介面截圖">
   </div>
 
   <div class="features">
@@ -376,6 +402,44 @@
         <h3>你的影片不會離開你的電腦</h3>
         <p>所有處理都在瀏覽器本機完成，影片和字幕不會上傳到任何伺服器。下載離線版後，連網路都不需要。</p>
       </div>
+    </div>
+  </div>
+
+  <div class="faq">
+    <h2>常見問題</h2>
+    <div class="faq-list">
+      <details class="faq-item">
+        <summary>支援哪些檔案格式？</summary>
+        <p>影片：MP4、MOV、WebM、MKV、AVI。音檔：MP3、WAV、OGG、M4A、FLAC。字幕：SRT 格式。</p>
+      </details>
+      <details class="faq-item">
+        <summary>需要安裝軟體嗎？</summary>
+        <p>不用。線上版打開瀏覽器就能用，離線版下載一個 HTML 檔案即可，不需要安裝任何東西。</p>
+      </details>
+      <details class="faq-item">
+        <summary>我的影片會被上傳嗎？</summary>
+        <p>不會。所有處理都在你的瀏覽器本機完成，影片和字幕不會離開你的電腦。離線版連網路都不需要。</p>
+      </details>
+      <details class="faq-item">
+        <summary>「自動斷句」是怎麼運作的？</summary>
+        <p>分析字幕文字，在標點符號、語氣詞（的、了、嗎、啊）、連接詞（然後、所以、但是）等台灣中文語意邊界處自動拆分，每行上限 16 字。</p>
+      </details>
+      <details class="faq-item">
+        <summary>「切點偵測」是什麼？</summary>
+        <p>分析音頻波形，找出說話之間的靜音段落。這些靜音點就是自然的字幕斷點，可以用「自動修正」一鍵將字幕時間對齊到這些位置。</p>
+      </details>
+      <details class="faq-item">
+        <summary>可以處理多長的影片？</summary>
+        <p>沒有限制。長影片載入後會自動調整縮放比例，波形圖可橫向捲動和縮放。實測一小時的直播影片可正常運作。</p>
+      </details>
+      <details class="faq-item">
+        <summary>手機或平板能用嗎？</summary>
+        <p>技術上可以打開，但波形圖拖拉操作和快捷鍵在觸控裝置上體驗不佳，建議使用電腦。</p>
+      </details>
+      <details class="faq-item">
+        <summary>是免費的嗎？</summary>
+        <p>是，完全免費，程式碼開源（MIT 授權）。</p>
+      </details>
     </div>
   </div>
 
