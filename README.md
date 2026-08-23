@@ -2,9 +2,11 @@
 
 單檔 HTML 字幕時間軸編輯器。載入影片 + SRT，用波形圖拖拉調整字幕時間，匯出修正後的 SRT。
 
+![SRT Editor Screenshot](screenshot.png)
+
 ## 使用
 
-下載 `index.html`，用瀏覽器打開，拖放影片和 SRT 檔案進去。
+下載 `app.html`，用瀏覽器打開，拖放影片和 SRT 檔案進去。
 
 > 需要網路連線（wavesurfer.js 從 CDN 載入）。
 
