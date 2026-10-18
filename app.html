@@ -1284,6 +1284,8 @@
       MAX_SUBS_PER_SEG: 8,  // 一個語音段最多塞幾條字幕（Whisper 把一句切成好幾條）
       MAX_SEGS_PER_SUB: 4,  // 一組字幕最多吃幾個語音段（一句話中間換氣被切開）
       MERGE_COST: 0.15,     // 每多吃一段的成本，免得無腦合併
+      MAX_MERGE_SILENCE: 1.2, // 合併語音段時，中間的靜音不可超過這麼長
+      TAIL_PAD: 0.5,        // 一條字幕最多在語音結束後多留這麼久
       BAND_RATIO: 0.12,     // DP 搜尋帶寬（佔字幕數比例）
       BAND_MIN: 60,
       OFFSET_RANGE: 12,     // 全域偏移搜尋範圍（秒）
@@ -1429,6 +1431,18 @@
           let bestR = 1
 
           for (let r = 1; r <= Math.min(R, j); r++) {
+            // 合併多段時不可以跨越長靜音。句中換氣通常不到一秒，
+            // 段落之間十幾秒的停頓不是換氣——把字幕攤在那上面，
+            // 它會在畫面上停十幾秒（實測最糟一條停 14.6 秒，其中 13.4 秒沒人講話）。
+            // gap 對 r 單調不減，所以超過就直接 break，不用再試更大的 r
+            if (r > 1) {
+              let worstGap = 0
+              for (let q = j - r + 1; q < j; q++) {
+                const g = segs[q].start - segs[q - 1].end
+                if (g > worstGap) worstGap = g
+              }
+              if (worstGap > ALIGN.MAX_MERGE_SILENCE) break
+            }
             const prow = (j - r) * W
             const segStart = segs[j - r].start
             const segEnd = segs[j - 1].end
@@ -1497,7 +1511,7 @@
     }
 
     // 4. 段內按字數比例切時間
-    function applyAlignmentPlan(subs, plan) {
+    function applyAlignmentPlan(subs, plan, segs) {
       const chars = subs.map(s => Math.max(alignCharCount(s.text), 1))
       for (const g of plan) {
         const span = g.end - g.start
@@ -1511,6 +1525,32 @@
           subs[x].end = g.start + (span * acc) / total
         }
       }
+      // 裁掉尾端靜音：字幕不該在沒人講話的時候還留在畫面上。
+      // 分配時間用的是「頭段起點到尾段終點」（跨過中間靜音，免得字幕閃），
+      // 代價就是靜音被攤進時長裡，所以這裡收回來。
+      // 這件事用覆蓋率量不出來——它是整體平均，會被別處的改善蓋過去
+      const segStarts = segs.map(g => g.start)
+      for (const s of subs) {
+        let lo = 0
+        let hi = segStarts.length
+        while (lo < hi) {
+          const mid = (lo + hi) >> 1
+          if (segStarts[mid] <= s.end) lo = mid + 1
+          else hi = mid
+        }
+        let j = lo - 1
+        let lastVoice = null
+        while (j >= 0) {
+          const g = segs[j]
+          if (g.end > s.start) { lastVoice = Math.min(g.end, s.end); break }
+          if (g.end < s.start - ALIGN.MAX_MERGE_SILENCE * 2) break
+          j--
+        }
+        if (lastVoice !== null && s.end - lastVoice > ALIGN.TAIL_PAD) {
+          s.end = lastVoice + ALIGN.TAIL_PAD
+        }
+      }
+
       // 收尾：最短時長、不交叉、小縫補滿（避免字幕閃爍）
       for (let x = 0; x < subs.length; x++) {
         if (subs[x].end - subs[x].start < ALIGN.MIN_DUR) {
@@ -1576,7 +1616,7 @@
         }
       }
       if (plan) {
-        applyAlignmentPlan(subtitles, plan)
+        applyAlignmentPlan(subtitles, plan, segs)
       } else {
         mode = '等比例'
         proportionalAlign(subtitles, segs)
