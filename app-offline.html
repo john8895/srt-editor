@@ -594,6 +594,7 @@
     </div>
     <div class="spacer"></div>
     <button class="btn" id="btn-auto-split" disabled>自動斷句</button>
+    <button class="btn" id="btn-align-audio" disabled>對齊聲音</button>
     <button class="btn" id="btn-cut-detect" disabled>切點偵測</button>
     <button class="btn" id="btn-prev-sub" title="上一段" style="display:none">◀</button>
     <button class="btn" id="btn-snap-one" title="對齊此段" style="display:none">對齊</button>
@@ -844,6 +845,7 @@
     }
     const btnAutoSplit = $('#btn-auto-split')
     const btnCutDetect = $('#btn-cut-detect')
+    const btnAlignAudio = $('#btn-align-audio')
     const btnPrevSub = $('#btn-prev-sub')
     const btnNextSub = $('#btn-next-sub')
     const btnSnapOne = $('#btn-snap-one')
@@ -1269,6 +1271,398 @@
       btnSnapAll.textContent = `已修正 (${subtitles.length} 條)`
       setTimeout(() => { btnSnapAll.textContent = '自動修正' }, 2000)
     })
+
+    // ── 對齊聲音：把字幕逐段重新對齊到語音 ──
+    // 這不是真的 forced alignment（純前端沒有 ASR 可比對發音）。
+    // 做法：偵測語音段 → DP 把字幕依字數分配到語音段 → 段內按字數比例切時間。
+    // ⚠️ 這套演算法在產線也有一份：video_pipeline/scripts/align_srt.py
+    //    （pipeline Step 1B+ 自動跑）。參數刻意保持一致——改這裡要想那裡，
+    //    否則同一份 SRT 在編輯器跟產線會得到不同結果。
+    // 跟「自動修正」的差別：那支是每條字幕的起訖各自吸附 1 秒內最近的切點，
+    // 整體漂移超過 1 秒就修不動，而且起訖獨立吸附會交叉。這支保序、不交叉，
+    // 整體漂移與局部錯位一起修。字幕斷句本身錯的地方修不回來（那要改文字）。
+    const ALIGN = {
+      WIN: 0.03,            // RMS 視窗 30ms
+      MERGE_GAP: 0.20,      // 間隔小於此值的語音段合併（句中換氣不算斷句）
+      MIN_SEG: 0.15,        // 短於此值的語音段丟掉（咳嗽、雜音）
+      PAD: 0.06,            // 語音段前後各留一點，避免切掉字頭
+      MAX_SUBS_PER_SEG: 8,  // 一個語音段最多塞幾條字幕（Whisper 把一句切成好幾條）
+      MAX_SEGS_PER_SUB: 4,  // 一組字幕最多吃幾個語音段（一句話中間換氣被切開）
+      MERGE_COST: 0.15,     // 每多吃一段的成本，免得無腦合併
+      BAND_RATIO: 0.12,     // DP 搜尋帶寬（佔字幕數比例）
+      BAND_MIN: 60,
+      OFFSET_RANGE: 12,     // 全域偏移搜尋範圍（秒）
+      OFFSET_STEP: 0.1,
+      TIME_WEIGHT: 0.35,    // 「貼近原始時間」的軟約束權重（實測調高反而更差，見檔頭註解）
+      MAX_SHIFT: 2.5,       // 單條字幕最大位移（秒）；超過幾乎都是對齊崩了，寧可不動
+      SHIFT_RELAX: [2.5, 5, 10, 0],  // DP 無解時逐步放寬，0 = 不限制
+      EMPTY_SEG_COST: 0.6,  // 語音段沒分到字幕的懲罰（每秒）
+      GAP_FILL: 0.3,        // 相鄰字幕間隔小於此值就補滿，避免閃爍
+      MIN_DUR: 0.25,        // 每條字幕最短時長
+      MAX_CELLS: 4e6,         // DP 格子上限，超過就退回等比例映射
+    }
+
+    function alignCharCount(text) {
+      return (text || '').replace(/\s/g, '').length
+    }
+
+    // 1. 偵測語音段（不是切點，是「這段在講話」的區間）
+    function detectSpeechSegments() {
+      const audioData = wavesurfer && wavesurfer.getDecodedData()
+      if (!audioData) return null
+
+      const channel = audioData.getChannelData(0)
+      const sampleRate = audioData.sampleRate
+      const win = Math.max(1, Math.floor(sampleRate * ALIGN.WIN))
+      const n = Math.floor(channel.length / win)
+      if (n < 2) return null
+
+      const rms = new Float32Array(n)
+      for (let w = 0; w < n; w++) {
+        let sum = 0
+        const s = w * win
+        for (let j = s; j < s + win; j++) sum += channel[j] * channel[j]
+        rms[w] = Math.sqrt(sum / win)
+      }
+
+      // 自適應門檻：固定 0.015 在不同錄音上會整個偏掉，所以從分位數推
+      const sorted = Float32Array.from(rms).sort()
+      const pct = p => sorted[Math.min(n - 1, Math.max(0, Math.floor(n * p)))]
+      const floorLv = pct(0.10)
+      const speechLv = pct(0.90)
+      const threshold = Math.max(floorLv + (speechLv - floorLv) * 0.10, floorLv * 1.8, 1e-5)
+
+      const raw = []
+      let inSpeech = false
+      let segStart = 0
+      for (let w = 0; w < n; w++) {
+        const t = (w * win) / sampleRate
+        if (rms[w] >= threshold) {
+          if (!inSpeech) { inSpeech = true; segStart = t }
+        } else if (inSpeech) {
+          inSpeech = false
+          raw.push({ start: segStart, end: t })
+        }
+      }
+      if (inSpeech) raw.push({ start: segStart, end: (n * win) / sampleRate })
+
+      const merged = []
+      for (const s of raw) {
+        const last = merged[merged.length - 1]
+        if (last && s.start - last.end < ALIGN.MERGE_GAP) last.end = s.end
+        else merged.push({ start: s.start, end: s.end })
+      }
+
+      const dur = wavesurfer.getDuration() || (n * win) / sampleRate
+      return merged
+        .filter(s => s.end - s.start >= ALIGN.MIN_SEG)
+        .map(s => ({
+          start: Math.max(0, s.start - ALIGN.PAD),
+          end: Math.min(dur, s.end + ALIGN.PAD),
+        }))
+    }
+
+    // 2. 估全域偏移：字幕覆蓋率 vs 語音覆蓋率的互相關
+    //    先把整體漂移拿掉，第 3 步的「貼近原始時間」軟約束才有意義
+    function estimateGlobalOffset(subs, segs, duration) {
+      const step = ALIGN.OFFSET_STEP
+      const bins = Math.ceil(duration / step) + 1
+      if (bins < 4) return 0
+      const speech = new Uint8Array(bins)
+      const sub = new Uint8Array(bins)
+      const fill = (arr, items) => {
+        for (const it of items) {
+          const a = Math.max(0, Math.floor(it.start / step))
+          const b = Math.min(bins - 1, Math.ceil(it.end / step))
+          for (let i = a; i <= b; i++) arr[i] = 1
+        }
+      }
+      fill(speech, segs)
+      fill(sub, subs)
+
+      const maxShift = Math.round(ALIGN.OFFSET_RANGE / step)
+      let bestShift = 0
+      let bestScore = -1
+      for (let sh = -maxShift; sh <= maxShift; sh++) {
+        let score = 0
+        const lo = Math.max(0, -sh)
+        const hi = Math.min(bins, bins - sh)
+        for (let i = lo; i < hi; i++) score += sub[i] & speech[i + sh]
+        // 輕微偏好 0：分數打平時不要無謂平移
+        score -= Math.abs(sh) * 1e-4
+        if (score > bestScore) { bestScore = score; bestShift = sh }
+      }
+      return bestShift * step
+    }
+
+    // 3. DP：把 N 條字幕單調分配到 M 個語音段
+    //    雙向都要支援——多條字幕塞一段（Whisper 把一句切成好幾條），
+    //    以及一條字幕跨多段（一句話中間有換氣，被切成兩三段語音）。
+    //    只做前者的話，講一句話中間停頓的地方會被判成空段，後面整串跟著位移。
+    function assignSubsToSegments(subs, segs, offset, maxShift) {
+      const N = subs.length
+      const M = segs.length
+      const B = ALIGN.MAX_SUBS_PER_SEG
+      const R = ALIGN.MAX_SEGS_PER_SUB
+
+      const chars = subs.map(s => alignCharCount(s.text))
+      const cum = new Float64Array(N + 1)
+      for (let i = 0; i < N; i++) cum[i + 1] = cum[i] + Math.max(chars[i], 1)
+      const totalChars = cum[N]
+
+      // 語音時長前綴和（用來算合併後的「實際講話時間」，不含中間靜音）
+      const segCum = new Float64Array(M + 1)
+      for (let j = 0; j < M; j++) segCum[j + 1] = segCum[j] + (segs[j].end - segs[j].start)
+      const secPerChar = segCum[M] / Math.max(1, totalChars)
+
+      const band = Math.max(ALIGN.BAND_MIN, Math.round(N * ALIGN.BAND_RATIO))
+      const W = N + 1
+      const dp = new Float64Array((M + 1) * W).fill(Infinity)
+      const backK = new Int32Array((M + 1) * W).fill(-1)
+      const backR = new Int32Array((M + 1) * W)
+      dp[0] = 0
+
+      for (let j = 1; j <= M; j++) {
+        const center = Math.round((j * N) / M)
+        const iLo = Math.max(0, center - band)
+        const iHi = Math.min(N, center + band)
+        const row = j * W
+
+        for (let i = iLo; i <= iHi; i++) {
+          let best = Infinity
+          let bestK = -1
+          let bestR = 1
+
+          for (let r = 1; r <= Math.min(R, j); r++) {
+            const prow = (j - r) * W
+            const segStart = segs[j - r].start
+            const segEnd = segs[j - 1].end
+            const span = segEnd - segStart              // 分配時間用（含中間靜音，字幕才不會閃）
+            const speech = segCum[j] - segCum[j - r]    // 比對字數用（只算真的在講話的時間）
+
+            // 空段只在 r=1 時有意義：這一段沒有任何字幕對應（笑聲、咳嗽、漏轉的話）
+            if (r === 1) {
+              const base = dp[prow + i]
+              if (base !== Infinity) {
+                const cost = base + ALIGN.EMPTY_SEG_COST * span
+                if (cost < best) { best = cost; bestK = i; bestR = 1 }
+              }
+            }
+
+            const kLo = Math.max(0, i - B)
+            for (let k = kLo; k < i; k++) {
+              const base = dp[prow + k]
+              if (base === Infinity) continue
+
+              // 位移要逐條算，不能拿整組的區間距離當代理：
+              // 組的範圍涵蓋語音段時「距離」會是 0，組裡個別字幕照樣被搬走 33 秒（實測踩過）
+              const total = cum[i] - cum[k]
+              let shiftSum = 0
+              let over = false
+              for (let x = k; x < i; x++) {
+                const newStart = segStart + (span * (cum[x] - cum[k])) / total
+                // 錨點用 start 不用 end：Whisper 的 end 常把後面的靜音含進去
+                const dd = Math.abs(newStart - (subs[x].start + offset))
+                if (maxShift > 0 && dd > maxShift) { over = true; break }
+                shiftSum += dd
+              }
+              if (over) continue
+
+              const cost = base
+                + Math.abs(speech - total * secPerChar)
+                + shiftSum * ALIGN.TIME_WEIGHT
+                + (r - 1) * ALIGN.MERGE_COST
+              if (cost < best) { best = cost; bestK = k; bestR = r }
+            }
+          }
+
+          dp[row + i] = best
+          backK[row + i] = bestK
+          backR[row + i] = bestR
+        }
+      }
+
+      if (dp[M * W + N] === Infinity) return null
+
+      // 回溯：每一筆是「哪幾段語音」配「哪幾條字幕」
+      const plan = []
+      let i = N
+      let j = M
+      let guard = 0
+      while (j >= 1) {
+        if (guard++ > M + 2) return null
+        const k = backK[j * W + i]
+        const r = backR[j * W + i] || 1
+        if (k < 0) return null
+        if (k < i) plan.push({ k, i, start: segs[j - r].start, end: segs[j - 1].end })
+        i = k
+        j -= r
+      }
+      return i === 0 && j === 0 ? plan.reverse() : null
+    }
+
+    // 4. 段內按字數比例切時間
+    function applyAlignmentPlan(subs, plan) {
+      const chars = subs.map(s => Math.max(alignCharCount(s.text), 1))
+      for (const g of plan) {
+        const span = g.end - g.start
+        let total = 0
+        for (let x = g.k; x < g.i; x++) total += chars[x]
+        let acc = 0
+        for (let x = g.k; x < g.i; x++) {
+          const a = g.start + (span * acc) / total
+          acc += chars[x]
+          subs[x].start = a
+          subs[x].end = g.start + (span * acc) / total
+        }
+      }
+      // 收尾：最短時長、不交叉、小縫補滿（避免字幕閃爍）
+      for (let x = 0; x < subs.length; x++) {
+        if (subs[x].end - subs[x].start < ALIGN.MIN_DUR) {
+          subs[x].end = subs[x].start + ALIGN.MIN_DUR
+        }
+        if (x > 0) {
+          if (subs[x].start < subs[x - 1].end) subs[x].start = subs[x - 1].end
+          if (subs[x].end <= subs[x].start) subs[x].end = subs[x].start + ALIGN.MIN_DUR
+          const gap = subs[x].start - subs[x - 1].end
+          if (gap > 0 && gap < ALIGN.GAP_FILL) subs[x - 1].end = subs[x].start
+        }
+      }
+    }
+
+    // 退路：DP 建不起來時，用「移除靜音的時間線」等比例映射
+    function proportionalAlign(subs, segs) {
+      const chars = subs.map(s => Math.max(alignCharCount(s.text), 1))
+      const total = chars.reduce((a, b) => a + b, 0)
+      const speechTotal = segs.reduce((a, s) => a + (s.end - s.start), 0)
+      // 語音時間線 → 真實時間
+      const toReal = p => {
+        let want = p * speechTotal
+        for (const s of segs) {
+          const d = s.end - s.start
+          if (want <= d) return s.start + want
+          want -= d
+        }
+        return segs.length ? segs[segs.length - 1].end : 0
+      }
+      let acc = 0
+      for (let x = 0; x < subs.length; x++) {
+        const a = toReal(acc / total)
+        acc += chars[x]
+        const b = toReal(acc / total)
+        subs[x].start = a
+        subs[x].end = Math.max(b, a + ALIGN.MIN_DUR)
+      }
+    }
+
+    function refreshAlignBtn() {
+      if (!btnAlignAudio) return
+      btnAlignAudio.disabled = !(wavesurfer && subtitles.length > 0)
+    }
+
+    function runAudioAlignment() {
+      const segs = detectSpeechSegments()
+      if (!segs || segs.length === 0) {
+        return { ok: false, msg: '偵測不到語音段，可能音量太小或整段是靜音' }
+      }
+      const before = subtitles.map(s => ({ start: s.start, end: s.end }))
+      const duration = wavesurfer.getDuration() || 0
+      const offset = estimateGlobalOffset(subtitles, segs, duration)
+
+      let mode = 'DP'
+      const cells = (segs.length + 1) * (subtitles.length + 1)
+      let plan = null
+      let usedShift = 0
+      if (cells <= ALIGN.MAX_CELLS) {
+        // 位移上限由嚴到寬試：先試「只做局部微調」，無解才放寬
+        for (const ms of ALIGN.SHIFT_RELAX) {
+          plan = assignSubsToSegments(subtitles, segs, offset, ms)
+          if (plan) { usedShift = ms; break }
+        }
+      }
+      if (plan) {
+        applyAlignmentPlan(subtitles, plan)
+      } else {
+        mode = '等比例'
+        proportionalAlign(subtitles, segs)
+      }
+
+      let moved = 0
+      let maxShift = 0
+      const shifts = []
+      for (let x = 0; x < subtitles.length; x++) {
+        const d = Math.abs(subtitles[x].start - before[x].start)
+        shifts.push(d)
+        if (d > 0.05) moved++
+        if (d > maxShift) maxShift = d
+      }
+      shifts.sort((a, b) => a - b)
+      const median = shifts.length ? shifts[Math.floor(shifts.length / 2)] : 0
+
+      return {
+        ok: true,
+        mode,
+        usedShift,
+        segs: segs.length,
+        moved,
+        total: subtitles.length,
+        median,
+        maxShift,
+        offset,
+      }
+    }
+
+    btnAlignAudio.addEventListener('click', () => {
+      if (!wavesurfer || !wavesurfer.getDecodedData()) {
+        showLoading('波形圖還沒解析完，等一下再按')
+        setTimeout(hideLoading, 1800)
+        return
+      }
+      if (subtitles.length === 0) {
+        showLoading('請先載入 SRT')
+        setTimeout(hideLoading, 1800)
+        return
+      }
+
+      showLoading('對齊聲音中…')
+      setTimeout(() => {
+        let result
+        try {
+          result = runAudioAlignment()
+        } catch (err) {
+          console.error('[align]', err)
+          result = { ok: false, msg: '對齊失敗：' + err.message }
+        }
+
+        if (!result.ok) {
+          showLoading(result.msg)
+          setTimeout(hideLoading, 2200)
+          return
+        }
+
+        renderSubtitleList()
+        renderRegions()
+        if (activeRegion) {
+          const sub = subtitles.find(s => s.id === activeRegion)
+          if (sub) syncEditDrawer(sub)
+        }
+        pushHistory()
+
+        const fmt = n => n.toFixed(2)
+        console.log(
+          `[align] 模式=${result.mode} 語音段=${result.segs} ` +
+          `全域偏移=${fmt(result.offset)}s 調整=${result.moved}/${result.total} ` +
+          `中位移動=${fmt(result.median)}s 最大=${fmt(result.maxShift)}s`
+        )
+        showLoading(
+          `已對齊 ${result.moved}/${result.total} 條　` +
+          `語音段 ${result.segs}　中位移動 ${fmt(result.median)}s　最大 ${fmt(result.maxShift)}s` +
+          `${result.mode === '等比例' ? '（退回等比例模式）' : ''}　⌘Z 可復原`
+        )
+        setTimeout(hideLoading, 3200)
+      }, 50)
+    })
+
 
     // ── Auto split (台灣斷句) ──
     const MAX_CHARS = 16
@@ -1868,6 +2262,7 @@
       fileInfo.textContent = subtitles.length > 0 ? file.name + ' + ' + srtFileName + '.srt' : file.name
       btnExport.disabled = false
       btnCutDetect.disabled = false
+      refreshAlignBtn()
       // Reset cut markers when loading new media
       cutMarkersVisible = false
       cutMarkers = []
@@ -1898,6 +2293,7 @@
         fileInfo.textContent = mediaFileName ? mediaFileName + ' + ' + file.name : file.name
         btnExport.disabled = false
         btnAutoSplit.disabled = false
+        refreshAlignBtn()
         undoStack.length = 0
         historyIndex = -1
         pushHistory()
